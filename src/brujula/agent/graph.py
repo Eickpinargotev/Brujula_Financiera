@@ -77,12 +77,12 @@ def _confirmation_text(p: dict[str, Any]) -> str:
     if p.get("tipo") == "gasto":
         extra = f", en {p['comercio']}" if p.get("comercio") else ""
         cuerpo = (
-            f"un *gasto* de ${p['monto']:,.2f} — {p['descripcion']} "
+            f"un gasto de ${p['monto']:,.2f} — {p['descripcion']} "
             f"(sobre: {p['sobre']}, categoría: {p['categoria']}{extra})"
         )
     else:
         cuerpo = (
-            f"un *ingreso* de ${p['monto']:,.2f} — {p['descripcion']} "
+            f"un ingreso de ${p['monto']:,.2f} — {p['descripcion']} "
             f"(fuente: {p['fuente_ingreso']})"
         )
     return f"Voy a registrar {cuerpo} con fecha {p['fecha']}. ¿Confirmo?"

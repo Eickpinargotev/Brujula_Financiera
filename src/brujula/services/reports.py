@@ -37,7 +37,7 @@ async def resumen_mes(session: AsyncSession, hoy: date) -> str:
             por_sobre[m.sobre or "otros"] += m.monto
 
     ahorro = ingresos - gastos
-    lineas = [f"📊 *{_MESES[hoy.month - 1].capitalize()} {hoy.year}*"]
+    lineas = [f"📊 {_MESES[hoy.month - 1].capitalize()} {hoy.year}"]
     lineas.append(f"Ingresos: ${ingresos:,.2f}")
     lineas.append(f"Gastos: ${gastos:,.2f}")
     if por_sobre:

@@ -9,6 +9,7 @@ imagen Docker. El cableado del bot y del dashboard se completa en la fase de des
 
 from __future__ import annotations
 
+import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
@@ -21,18 +22,32 @@ from brujula.db.bootstrap import bootstrap_database
 
 settings = get_settings()
 configure_logging(settings.app_env)
+logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     # Crea las tablas y siembra parámetros/metas/sobres iniciales.
     await bootstrap_database(settings)
-    # TODO(desarrollo): arrancar el bot de Telegram en polling.
-    #   from brujula.bot.telegram_bot import start_bot
-    #   app.state.bot = await start_bot(settings)
+
+    # Arranca el bot de Telegram (polling) en el mismo event loop, si hay credenciales.
+    app.state.bot = None
+    if settings.telegram_bot_token and settings.openai_api_key:
+        try:
+            from brujula.bot.telegram_bot import start_bot
+
+            app.state.bot = await start_bot(settings)
+        except Exception:  # noqa: BLE001 - el dashboard debe seguir vivo
+            logger.exception("No se pudo iniciar el bot; el dashboard sigue activo.")
+    else:
+        logger.warning("Bot no iniciado: faltan TELEGRAM_BOT_TOKEN u OPENAI_API_KEY.")
+
     yield
-    # TODO(desarrollo): detener el bot limpiamente.
-    #   await app.state.bot.shutdown()
+
+    if app.state.bot is not None:
+        from brujula.bot.telegram_bot import stop_bot
+
+        await stop_bot(app.state.bot)
 
 
 # docs/openapi deshabilitados: no exponer el esquema de la API.
