@@ -1,0 +1,26 @@
+# Brújula — orquestación de DESARROLLO (un solo servicio).
+# En producción se despliega la misma imagen como una App en EasyPanel.
+
+services:
+  brujula:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        INSTALL_DEV: "true"   # incluye ruff/pytest/mypy en la imagen de desarrollo
+    image: brujula-financiera:dev
+    container_name: brujula-financiera
+    env_file: .env
+    environment:
+      APP_ENV: development
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./src:/app/src                      # bind-mount para hot-reload en desarrollo
+      - ./tests:/app/tests                  # para correr pytest dentro del contenedor
+      - ./pyproject.toml:/app/pyproject.toml  # config de pytest/ruff/mypy
+      - ./data:/data                        # persistencia de SQLite
+    command: >
+      uvicorn brujula.main:app
+      --host 0.0.0.0 --port 8000 --reload --reload-dir /app/src
+    restart: unless-stopped

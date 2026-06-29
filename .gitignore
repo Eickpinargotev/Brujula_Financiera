@@ -1,0 +1,34 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Secretos / entorno
+.env
+*.env
+!.env.example
+
+# Datos / base de datos (nunca al repo, pero conservamos la carpeta vacía)
+/data/*
+!/data/.gitkeep
+*.db
+*.sqlite
+*.sqlite3
+
+# Logs
+*.log
+logs/
+
+# SO / editores
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

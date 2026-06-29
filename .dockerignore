@@ -1,0 +1,22 @@
+.git
+.gitignore
+.venv
+venv
+__pycache__
+*.pyc
+.pytest_cache
+.mypy_cache
+.ruff_cache
+
+# Secretos y datos jamás en la imagen
+.env
+*.env
+data/
+*.db
+*.sqlite3
+
+# No hace falta en la imagen
+tests/
+docs/
+*.md
+Makefile
