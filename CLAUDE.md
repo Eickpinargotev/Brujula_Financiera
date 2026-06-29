@@ -95,6 +95,16 @@ src/brujula/
     headers (nombre aún por confirmar → se loguea en DEBUG; fallback "n/d").
 11. **Metas a contado**, derivadas de `BIRTH_DATE + edad` (carro 30, casa 35). La sección
     motivadora expresa la fecha proyectada como edad ("a los X años, Y meses").
+12. **Guardián determinístico:** la extracción usa **salida estructurada** validada por
+    Pydantic (`agent/schemas.py::AgentDecision`). Si un campo requerido falta o es inválido,
+    NO se guarda: se pregunta. El LLM nunca calcula dinero ni inventa datos.
+13. **Modelo de 3 dimensiones** en cada gasto: `sobre` (presupuesto) · `categoria` (tipo) ·
+    `comercio` (a quién). Ingresos llevan `fuente_ingreso`. **No** se registra método de
+    pago (siempre tarjeta).
+14. **Memoria acotada:** el agente recuerda solo las **últimas 7 interacciones**
+    (`agent/memory.py`); la memoria por chat se poda para no crecer ni quemar tokens.
+15. **Reintentos acotados** (`agent/llm.py`): ante fallo de formato del LLM, pocos
+    reintentos y luego degradación segura (pide repetir), sin loops que quemen tokens.
 
 ---
 
@@ -161,9 +171,9 @@ src/brujula/
 - [x] Bases / scaffolding (estructura, Docker, docs, config, env)
 - [x] Capa de datos (modelos + engine + siembra inicial; bootstrap en el arranque)
 - [x] Transcripción ElevenLabs Scribe v2 (servicio + línea de costo)
-- [ ] Lógica financiera (`domain/`: sobres, metas, forecast) — base en `domain/finance.py`
-- [ ] Agente LangGraph + tools + prompts
-- [ ] Bot de Telegram (auth, voz, confirmación)
+- [x] Agente LangGraph (guardián, confirmación, memoria 7 interacciones, consultas)
+- [ ] Lógica financiera (`domain/`: sobres acumulados, forecast, motivador) — base en `domain/finance.py`
+- [ ] Bot de Telegram (auth, voz, confirmación) — cablear el agente al polling
 - [ ] Dashboard + login + gráficos
-- [ ] Pruebas en Docker (en marcha: smoke, finance, usage, transcription, db_seed)
+- [ ] Pruebas en Docker (smoke, finance, usage, transcription, db_seed, agent_*)
 - [ ] Despliegue EasyPanel

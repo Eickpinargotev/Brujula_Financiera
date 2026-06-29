@@ -1,14 +1,15 @@
 """Modelos SQLAlchemy (esquema de la base de datos).
 
-Aquí viven TODOS los datos: parámetros financieros, metas, sobres y movimientos.
-Nada de esto está en `.env`. Ver docs/finance-model.md.
+Aquí viven TODOS los datos: parámetros, metas, sobres, movimientos (gastos e ingresos
+unificados), operaciones (compras agrupadas) y recurrentes. Nada de esto está en `.env`.
+Ver docs/finance-model.md §6.
 """
 
 from __future__ import annotations
 
 from datetime import date, datetime
 
-from sqlalchemy import Boolean, Date, DateTime, Float, Integer, String, func
+from sqlalchemy import Boolean, Date, DateTime, Float, ForeignKey, Integer, String, func
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 
@@ -17,7 +18,7 @@ class Base(DeclarativeBase):
 
 
 class Parameter(Base):
-    """Parámetro financiero/clave-valor (sueldo, tasa IESS, fecha nacimiento, etc.)."""
+    """Parámetro clave-valor (fecha nacimiento, sueldo, tasa IESS, zona horaria…)."""
 
     __tablename__ = "parameters"
 
@@ -39,39 +40,68 @@ class Goal(Base):
 
 
 class Envelope(Base):
-    """Sobre del presupuesto (familia, relación, iglesia…) con arrastre opcional."""
+    """Sobre/presupuesto: define el destino del dinero y su tope mensual.
+
+    tipo: 'porcentaje' (del ingreso total), 'fijo' (monto) o 'residual' (el resto → ahorro).
+    """
 
     __tablename__ = "envelopes"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     nombre: Mapped[str] = mapped_column(String, unique=True)
-    tipo: Mapped[str] = mapped_column(String)  # 'fijo' | 'porcentaje'
-    valor: Mapped[float] = mapped_column(Float)  # monto fijo o fracción (0.10)
+    tipo: Mapped[str] = mapped_column(String)  # 'porcentaje' | 'fijo' | 'residual'
+    valor: Mapped[float] = mapped_column(Float)  # fracción (0.10), monto fijo o 0
     arrastre: Mapped[bool] = mapped_column(Boolean, default=True)
 
 
-class Income(Base):
-    """Ingreso registrado (trabajo o proyecto personal)."""
+class Operacion(Base):
+    """Compra/operación que agrupa varios movimientos (ítem + impuestos + envío)."""
 
-    __tablename__ = "incomes"
+    __tablename__ = "operaciones"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    nombre: Mapped[str] = mapped_column(String)
     fecha: Mapped[date] = mapped_column(Date)
-    monto: Mapped[float] = mapped_column(Float)
-    fuente: Mapped[str] = mapped_column(String)  # 'trabajo' | 'proyecto_personal'
     descripcion: Mapped[str | None] = mapped_column(String, nullable=True)
-    creado_en: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
 
-class Expense(Base):
-    """Gasto registrado, asociado a una categoría y opcionalmente a un sobre."""
+class Movimiento(Base):
+    """Movimiento de dinero: gasto o ingreso (modelo unificado).
 
-    __tablename__ = "expenses"
+    En gastos se usan `sobre` y `categoria`; en ingresos, `fuente_ingreso`.
+    """
+
+    __tablename__ = "movimientos"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    tipo: Mapped[str] = mapped_column(String)  # 'gasto' | 'ingreso'
     fecha: Mapped[date] = mapped_column(Date)
     monto: Mapped[float] = mapped_column(Float)
-    categoria: Mapped[str] = mapped_column(String)
+    descripcion: Mapped[str] = mapped_column(String)
+
+    # Solo en gastos:
     sobre: Mapped[str | None] = mapped_column(String, nullable=True)
-    descripcion: Mapped[str | None] = mapped_column(String, nullable=True)
+    categoria: Mapped[str | None] = mapped_column(String, nullable=True)
+    # Solo en ingresos:
+    fuente_ingreso: Mapped[str | None] = mapped_column(String, nullable=True)
+    # Ambos:
+    comercio: Mapped[str | None] = mapped_column(String, nullable=True)
+    grupo_id: Mapped[int | None] = mapped_column(ForeignKey("operaciones.id"), nullable=True)
     creado_en: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+
+
+class Recurrente(Base):
+    """Cargo recurrente para pronóstico (suscripciones como Shopify, con impuestos)."""
+
+    __tablename__ = "recurrentes"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    nombre: Mapped[str] = mapped_column(String, unique=True)
+    monto_base: Mapped[float] = mapped_column(Float)
+    iva: Mapped[float] = mapped_column(Float, default=0.0)  # fracción, ej. 0.15
+    isd: Mapped[float] = mapped_column(Float, default=0.0)  # fracción, ej. 0.05
+    periodicidad: Mapped[str] = mapped_column(String, default="mensual")
+    sobre: Mapped[str | None] = mapped_column(String, nullable=True)
+    categoria: Mapped[str | None] = mapped_column(String, nullable=True)
+    comercio: Mapped[str | None] = mapped_column(String, nullable=True)
+    activo: Mapped[bool] = mapped_column(Boolean, default=True)

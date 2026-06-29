@@ -30,27 +30,35 @@ Con los valores actuales:
 
 ---
 
-## 2. Presupuesto por sobres ("buckets") con arrastre
+## 2. Presupuesto por sobres ("buckets")
 
-Cada mes, parte del ingreso se **asigna** a sobres. Lo no gastado **NO se pierde**: se
-acumula (rollover) y queda disponible.
+Los % se calculan sobre el **ingreso TOTAL del mes** (sueldo neto + extra), así escalan
+cuando suben los ingresos. Los sobres son **topes/metas**, no bolsillos con dinero
+encerrado (ver modelo de ahorro abajo).
 
 | Sobre | Asignación | Tipo |
 |---|---|---|
-| Iglesia | `IGLESIA_FIJO` ($60) | gasto/aporte fijo |
-| Familia | `PCT_FAMILIA` (10 %) del ingreso | reserva con arrastre |
-| Relación (pareja) | `PCT_RELACION` (10 %) del ingreso | reserva con arrastre |
-| Vida / gastos hormiga | resto operativo | gasto |
-| Ahorro metas | excedente | hacia metas |
+| Familia | 10 % | porcentaje |
+| Pareja | 10 % | porcentaje |
+| Personal | 5 % (gym, café, salud, autocuidado) | porcentaje |
+| Iglesia | $60 | fijo |
+| Transporte | $60 | fijo |
+| Ahorro | el resto | residual → metas |
 
-**Semáforo mensual por sobre:**
-- 🟢 **Verde**: gastaste ≤ lo asignado (ahorraste, el sobrante se arrastra).
-- 🟡 **Amarillo**: cerca del límite (configurable, p.ej. 80–100 %).
-- 🔴 **Rojo**: te pasaste de lo asignado.
+> `ahorro` es además el **catch-all**: gastos sin un sobre específico (cursos/inversión,
+> suscripciones como Shopify) salen del ahorro.
+
+**Modelo de ahorro (confirmado):** `ahorro_del_mes = ingreso − gastos reales`. Gastar
+menos que un tope = ahorraste esa diferencia → acelera las metas. El **semáforo** se
+evalúa de forma **acumulada** por sobre, para que lo ahorrado antes cubra un gasto grande
+después (efecto arrastre sin congelar plata lejos de las metas):
 
 ```
-saldo_sobre(mes) = saldo_sobre(mes-1) + asignacion(mes) - gastado(mes)
+balance_sobre(hasta_mes) = Σ asignacion - Σ gastado
+🟢 balance ≥ 0 (vas bien) · 🟡 cerca del tope · 🔴 te pasaste
 ```
+
+**Pago:** siempre con tarjeta (no se registra método de pago).
 
 ---
 
@@ -142,10 +150,21 @@ parameters   (key, value, description)   # birth_date, base_salary, iess_persona
                                           # income_tax_monthly, extra_income_baseline,
                                           # saldo_inicial, timezone, currency
 goals        (id, nombre, monto_objetivo, edad_objetivo, ahorrado)   # carro, casa
-envelopes    (id, nombre, tipo[fijo|porcentaje], valor, arrastre)    # familia, relacion, iglesia
-incomes      (id, fecha, monto, fuente[trabajo|proyecto_personal], descripcion, creado_en)
-expenses     (id, fecha, monto, categoria, sobre, descripcion, creado_en)
+envelopes    (id, nombre, tipo[porcentaje|fijo|residual], valor, arrastre)
+operaciones  (id, nombre, fecha, descripcion)            # compra que agrupa movimientos
+movimientos  (id, tipo[gasto|ingreso], fecha, monto, descripcion,
+              sobre, categoria,            # solo gastos
+              fuente_ingreso,              # solo ingresos
+              comercio, grupo_id→operaciones, creado_en)
+recurrentes  (id, nombre, monto_base, iva, isd, periodicidad, sobre, categoria,
+              comercio, activo)            # suscripciones para pronóstico (Shopify…)
 ```
 
-Categorías de gasto iniciales (configurables): `pareja`, `familia`, `iglesia`,
-`personal`, `salud` (minoxidil, etc.), `comida`, `transporte`, `otros`.
+**Tres dimensiones del movimiento** (gasto):
+- **sobre** (presupuesto): `pareja`, `familia`, `personal`, `iglesia`, `transporte`, `ahorro`.
+- **categoria** (tipo): `comida`, `hogar`, `tecnologia`, `regalo`, `salud`, `suscripcion`,
+  `educacion`, `transporte`, `impuestos`, `entretenimiento`, `iglesia`, `otros`.
+- **comercio** (a quién): Amazon, Shopify, Uber, Gobierno, supermercado, Iglesia…
+
+Compras multi-costo (ej. laptop) = una `operacion` con varios `movimientos` (ítem +
+impuestos + envío), cada uno con su comercio. No se registra método de pago (siempre tarjeta).

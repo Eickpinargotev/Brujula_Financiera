@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 from sqlalchemy.pool import StaticPool
 
 from brujula.db.engine import create_all
-from brujula.db.models import Envelope, Goal, Parameter
+from brujula.db.models import Envelope, Goal, Parameter, Recurrente
 from brujula.db.seed import seed_if_empty
 
 
@@ -44,7 +44,27 @@ async def test_seed_inserts_envelopes(session: AsyncSession) -> None:
     await seed_if_empty(session)
     await session.commit()
     envs = (await session.execute(select(Envelope))).scalars().all()
-    assert {e.nombre for e in envs} == {"familia", "relacion", "iglesia"}
+    assert {e.nombre for e in envs} == {
+        "familia",
+        "pareja",
+        "personal",
+        "iglesia",
+        "transporte",
+        "ahorro",
+    }
+    personal = next(e for e in envs if e.nombre == "personal")
+    assert personal.tipo == "porcentaje"
+    assert personal.valor == 0.05
+
+
+async def test_seed_inserts_recurrentes(session: AsyncSession) -> None:
+    await seed_if_empty(session)
+    await session.commit()
+    recs = (await session.execute(select(Recurrente))).scalars().all()
+    assert {r.nombre for r in recs} == {"Shopify"}
+    shopify = recs[0]
+    assert shopify.iva == 0.15
+    assert shopify.isd == 0.05
 
 
 async def test_seed_parameters(session: AsyncSession) -> None:
