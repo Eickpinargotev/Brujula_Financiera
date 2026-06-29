@@ -40,3 +40,40 @@ def test_bot_hace_polling_en_produccion_con_credenciales() -> None:
 def test_bot_no_polling_sin_credenciales() -> None:
     s = Settings(app_env="production", telegram_bot_token="", openai_api_key="k")
     assert s.bot_should_poll is False
+
+
+def test_missing_required_detecta_faltantes() -> None:
+    """Sin secretos, lista todas las variables requeridas que faltan.
+
+    Se pasan vacías explícitamente (en el contenedor el entorno trae el .env real).
+    """
+    s = Settings(
+        app_env="production",
+        telegram_bot_token="",
+        telegram_allowed_chat_id="",
+        openai_api_key="",
+        elevenlabs_api_key="",
+        dashboard_password="",
+        session_secret="",
+    )
+    assert set(s.missing_required()) == {
+        "TELEGRAM_BOT_TOKEN",
+        "TELEGRAM_ALLOWED_CHAT_ID",
+        "OPENAI_API_KEY",
+        "ELEVENLABS_API_KEY",
+        "DASHBOARD_PASSWORD",
+        "SESSION_SECRET",
+    }
+
+
+def test_missing_required_vacio_con_todo_configurado() -> None:
+    s = Settings(
+        app_env="production",
+        telegram_bot_token="t",
+        telegram_allowed_chat_id="1",
+        openai_api_key="k",
+        elevenlabs_api_key="e",
+        dashboard_password="p",
+        session_secret="s",
+    )
+    assert s.missing_required() == []

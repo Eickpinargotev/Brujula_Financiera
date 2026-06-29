@@ -15,6 +15,16 @@ from functools import lru_cache
 from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+# Variables que DEBEN estar presentes en producción (si falta una, no se inicia).
+_REQUIRED_IN_PRODUCTION = (
+    "telegram_bot_token",
+    "telegram_allowed_chat_id",
+    "openai_api_key",
+    "elevenlabs_api_key",
+    "dashboard_password",
+    "session_secret",
+)
+
 
 class Settings(BaseSettings):
     """Configuración de infraestructura de Brújula Financiera (desde el entorno / .env)."""
@@ -69,6 +79,14 @@ class Settings(BaseSettings):
         En desarrollo NO se arranca, para no competir por el mismo token de Telegram.
         """
         return self.is_production and bool(self.telegram_bot_token) and bool(self.openai_api_key)
+
+    def missing_required(self) -> list[str]:
+        """Nombres (en MAYÚSCULAS) de variables requeridas que faltan o están vacías."""
+        return [
+            field.upper()
+            for field in _REQUIRED_IN_PRODUCTION
+            if getattr(self, field) in (None, "")
+        ]
 
 
 @lru_cache

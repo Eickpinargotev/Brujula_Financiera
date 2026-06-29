@@ -27,6 +27,15 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+    # Fail-fast: en producción no se inicia si faltan variables de entorno requeridas.
+    faltan = settings.missing_required()
+    if faltan:
+        mensaje = "Faltan variables de entorno requeridas: " + ", ".join(faltan)
+        if settings.is_production:
+            logger.error(mensaje)
+            raise RuntimeError(mensaje)
+        logger.warning("%s (permitido en desarrollo)", mensaje)
+
     # Crea las tablas y siembra parámetros/metas/sobres iniciales.
     await bootstrap_database(settings)
 
