@@ -13,9 +13,11 @@ ENV PYTHONUNBUFFERED=1 \
 # instalada: así el bind-mount de desarrollo (--reload) toma efecto, y en producción
 # se usa el ./src copiado en la imagen.
 
-# Dependencias del sistema mínimas (ffmpeg ayuda con audio de Telegram .oga/.ogg)
+# Dependencias del sistema mínimas:
+#  - ffmpeg: ayuda con audio de Telegram (.oga/.ogg)
+#  - gosu: para bajar de root a usuario no-root tras ajustar permisos del volumen
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends ffmpeg \
+    && apt-get install -y --no-install-recommends ffmpeg gosu \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
@@ -40,13 +42,16 @@ COPY --from=builder /usr/local/lib/python3.12/site-packages /usr/local/lib/pytho
 COPY --from=builder /usr/local/bin /usr/local/bin
 
 COPY src ./src
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
 
 # Volumen para la base de datos (SQLite)
 RUN mkdir -p /data && chown -R brujula:brujula /data /app
 VOLUME ["/data"]
 
-USER brujula
-
+# NO fijamos USER: el contenedor inicia como root, el entrypoint ajusta permisos del
+# volumen y luego ejecuta la app como `brujula` (no-root) vía gosu.
 EXPOSE 8000
 
+ENTRYPOINT ["/entrypoint.sh"]
 CMD ["uvicorn", "brujula.main:app", "--host", "0.0.0.0", "--port", "8000"]
