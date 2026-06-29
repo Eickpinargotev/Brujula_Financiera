@@ -25,14 +25,13 @@ del proxy con HTTPS, con un **volumen persistente** para la base de datos.
    TELEGRAM_BOT_TOKEN=...
    TELEGRAM_ALLOWED_CHAT_ID=...
    OPENAI_API_KEY=...
-   OPENAI_MODEL=gpt-4o-mini
    ELEVENLABS_API_KEY=...
-   ELEVENLABS_STT_MODEL=scribe_v2
    DASHBOARD_PASSWORD=...
    SESSION_SECRET=...            # openssl rand -hex 32
    DATABASE_URL=sqlite+aiosqlite:////data/brujula.db
-   # + parámetros del modelo financiero (ver .env.example)
    ```
+   > `APP_ENV=production` es lo que **activa el polling del bot**. Los ids de modelos son
+   > defaults en código (no van en el entorno). Los parámetros financieros viven en la BD.
 6. **Dominio**: asignar el subdominio de Hostinger y activar HTTPS (Let's Encrypt).
 7. **Deploy** y revisar logs: el dashboard responde y el bot conecta por polling.
 

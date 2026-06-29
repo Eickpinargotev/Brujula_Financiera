@@ -24,3 +24,19 @@ def test_app_imports() -> None:
     from brujula.main import app
 
     assert app.title == "Brújula Financiera"
+
+
+def test_bot_no_hace_polling_en_desarrollo() -> None:
+    """En desarrollo el bot NO debe hacer polling (evita conflicto con la nube)."""
+    s = Settings(app_env="development", telegram_bot_token="t", openai_api_key="k")
+    assert s.bot_should_poll is False
+
+
+def test_bot_hace_polling_en_produccion_con_credenciales() -> None:
+    s = Settings(app_env="production", telegram_bot_token="t", openai_api_key="k")
+    assert s.bot_should_poll is True
+
+
+def test_bot_no_polling_sin_credenciales() -> None:
+    s = Settings(app_env="production", telegram_bot_token="", openai_api_key="k")
+    assert s.bot_should_poll is False

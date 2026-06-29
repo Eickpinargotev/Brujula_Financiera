@@ -36,8 +36,13 @@ hacia metas.
 
 | Entorno | Cómo | Notas |
 |---|---|---|
-| **development** | `docker compose up` (bind-mount de `./src`, `--reload`) | `.env` con `APP_ENV=development`. BD en `./data/`. |
-| **production** | 1 imagen en EasyPanel (App) + volumen `/data` | Variables en el panel de EasyPanel. Polling de Telegram. |
+| **development** | `docker compose up` (bind-mount de `./src`, `--reload`) | `.env` con `APP_ENV=development`. BD en `./data/`. **El bot NO hace polling** (evita conflicto con la nube). |
+| **production** | 1 imagen en EasyPanel (App) + volumen `/data` | Variables en el panel de EasyPanel. **El bot SÍ hace polling** (único consumidor del token). |
+
+> **Regla del bot:** Telegram permite un solo consumidor por token. Por eso el polling se
+> activa **solo** cuando `APP_ENV=production` (`settings.bot_should_poll`). Para probar el
+> bot en local, pon `APP_ENV=production` temporalmente y asegúrate de que la nube no esté
+> corriendo.
 
 `APP_ENV` (`development` | `production`) controla comportamiento (logs, reload, cookies
 secure, etc.). Nunca asumir entorno: leerlo de la config.
@@ -156,9 +161,10 @@ src/brujula/
 
 ## 9. Variables de entorno y dónde viven los datos
 
-- **`.env` = SOLO infraestructura y secretos** (tokens, claves API, contraseña/secreto del
-  dashboard, `DATABASE_URL`, `APP_ENV`, ids de modelos). Documentadas en `.env.example`
-  con valores vacíos; el dueño las completa.
+- **`.env` = SOLO secretos e infraestructura FIJA** (tokens, claves API, contraseña/secreto
+  del dashboard, `DATABASE_URL`, `APP_ENV`, `TELEGRAM_ALLOWED_CHAT_ID`). **Nada que varíe.**
+  Los **ids de modelos** (OpenAI/ElevenLabs) son defaults en código (`config/settings.py`),
+  NO en `.env`. Documentadas en `.env.example` con valores vacíos; el dueño las completa.
 - **Los parámetros financieros y las metas NO van en `.env`.** Viven en la **base de
   datos** (tablas `parameters`, `goals`, `envelopes`), se **siembran** al iniciar
   (`db/seed.py`) y se consultan/editan en tiempo de ejecución por Telegram o el dashboard.

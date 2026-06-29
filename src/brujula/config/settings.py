@@ -35,10 +35,12 @@ class Settings(BaseSettings):
 
     # --- OpenAI (agente) ---
     openai_api_key: str = ""
+    # Id del modelo: default en código (NO va en .env; no es secreto ni dato que varíe).
     openai_model: str = "gpt-4o-mini"
 
     # --- ElevenLabs (transcripción Scribe v2, batch) ---
     elevenlabs_api_key: str = ""
+    # Id del modelo STT: default en código (NO va en .env).
     elevenlabs_stt_model: str = "scribe_v2"
 
     # --- Dashboard (seguridad) ---
@@ -59,6 +61,14 @@ class Settings(BaseSettings):
     @property
     def is_production(self) -> bool:
         return self.app_env.lower() == "production"
+
+    @property
+    def bot_should_poll(self) -> bool:
+        """El bot solo hace polling en producción (evita conflicto con la nube).
+
+        En desarrollo NO se arranca, para no competir por el mismo token de Telegram.
+        """
+        return self.is_production and bool(self.telegram_bot_token) and bool(self.openai_api_key)
 
 
 @lru_cache

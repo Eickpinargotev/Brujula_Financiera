@@ -30,15 +30,17 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     # Crea las tablas y siembra parámetros/metas/sobres iniciales.
     await bootstrap_database(settings)
 
-    # Arranca el bot de Telegram (polling) en el mismo event loop, si hay credenciales.
+    # Arranca el bot de Telegram (polling) SOLO en producción, para no chocar con la nube.
     app.state.bot = None
-    if settings.telegram_bot_token and settings.openai_api_key:
+    if settings.bot_should_poll:
         try:
             from brujula.bot.telegram_bot import start_bot
 
             app.state.bot = await start_bot(settings)
         except Exception:  # noqa: BLE001 - el dashboard debe seguir vivo
             logger.exception("No se pudo iniciar el bot; el dashboard sigue activo.")
+    elif not settings.is_production:
+        logger.info("Bot en pausa: en desarrollo no hace polling (evita conflicto con la nube).")
     else:
         logger.warning("Bot no iniciado: faltan TELEGRAM_BOT_TOKEN u OPENAI_API_KEY.")
 
