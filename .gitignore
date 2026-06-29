@@ -32,3 +32,6 @@ logs/
 Thumbs.db
 .idea/
 .vscode/
+
+# Respaldos de .env (nunca al repo)
+.env.bak*
