@@ -62,70 +62,66 @@ balance_sobre(hasta_mes) = Σ asignacion - Σ gastado
 
 ---
 
-## 3. Metas (ahorro a contado)
+## 3. Metas en **cascada por prioridad** (ahorro a contado)
 
-Ambas metas se pagan **a contado** (es ahorro acumulado, no crédito). La fecha objetivo
-se **deriva de la edad**: `fecha_objetivo = BIRTH_DATE + edad`.
+Las metas se pagan **a contado** y se financian **en cascada por prioridad**: todo el
+ahorro se acumula en la meta #1 hasta completarla; al comprarla, **empieza la #2 desde
+cero**, y así sucesivamente. Esa es la única forma de saber *en qué orden y en qué fecha*
+se logra cada una. Las metas son **editables** (crear/editar/eliminar/reordenar) desde la
+pestaña **Metas** del dashboard; no viven en `.env`, viven en la tabla `goals`.
 
-| Meta | Monto | Objetivo por edad | Fecha (derivada) |
-|---|---|---|---|
-| 🚗 Carro eléctrico | `META_CARRO` = $27.000 | `META_CARRO_EDAD` = antes de los 30 | `BIRTH_DATE + 30` |
-| 🏠 Casa | `META_CASA` = $100.000 | `META_CASA_EDAD` = antes de los 35 | `BIRTH_DATE + 35` |
-
-Para cada meta el sistema calcula:
+**Patrimonio (pool):** el reparto parte del ahorro acumulado real:
 
 ```
-restante           = monto - ahorrado
-meses_objetivo     = meses entre hoy y fecha_objetivo
-ahorro_necesario   = restante / meses_objetivo          # para llegar a tiempo
-ahorro_actual      = promedio de aporte mensual reciente
-fecha_proyectada   = hoy + (restante / ahorro_actual) meses
-brecha             = ahorro_necesario - ahorro_actual    # cuánto falta por mes
+profit_total = Σ ingresos − Σ gastos   (todos los movimientos, histórico)
+pool         = saldo_inicial + profit_total
 ```
 
-### Realidad actual (transparencia)
+**Reparto en cascada** (`domain/goals.asignar_cascada`): recorre las metas por prioridad
+y llena cada `monto_objetivo` antes de pasar a la siguiente. `ahorrado` por meta **NO se
+guarda**: se deriva del pool. El sobrante tras cubrir todas las metas es "libre".
 
-Con el nuevo horizonte (carro a los 30, casa a los 35) las metas son más alcanzables que
-antes, pero aún exigen subir ingresos:
+Cada meta puede tener **fecha objetivo opcional** (por edad `BIRTH_DATE + edad`, fecha
+exacta, o **sin límite**). Semilla inicial: 🚗 carro $27.000 (prioridad 1, antes de los 30)
+· 🏠 casa $100.000 (prioridad 2, antes de los 35). `BIRTH_DATE` real: **feb 1998**.
 
-- 🚗 Carro $27.000 a ~2-3 años ≈ **$900–1.250/mes**.
-- 🏠 Casa $100.000 a ~7 años ≈ **$1.100–1.200/mes**.
+Para cada meta, con `objetivo_acumulado` = Σ montos hasta esa prioridad:
 
-Al ritmo de ahorro actual (~$600–700/mes) todavía hay brecha. El dashboard muestra ambas
-fechas (objetivo vs **proyectada**) y el **ingreso adicional requerido**. Es intencional:
-el sistema mide y motiva el crecimiento de ingresos.
+```
+ahorrado         = min de lo que le tocó del pool en cascada
+restante         = monto_objetivo - ahorrado
+meses_estimados  = ceil((objetivo_acumulado - pool) / ahorro_mensual)   # secuencial
+fecha_estimada   = hoy + meses_estimados                                 # informativa
+ahorro_necesario = (objetivo_acumulado - pool) / meses_hasta(fecha_objetivo)
+en_camino        = fecha_estimada <= fecha_objetivo
+```
+
+`ahorro_necesario` responde a *"para tener la casa antes de los 35 —pagando primero el
+carro— tengo que ahorrar $X/mes"*. `ahorro_mensual` = promedio de profit mensual reciente.
 
 ### Sección motivadora ("¿a qué edad lo logro?")
 
-Bloque destacado del dashboard y de los reportes por Telegram. Convierte la fecha
-proyectada en **edad** y en cuenta regresiva, con el mensaje que pediste:
-
-```
-fecha_proyectada = hoy + (restante / ahorro_actual) meses
-edad_al_lograrlo = años/meses entre BIRTH_DATE y fecha_proyectada
-faltan           = años/meses entre hoy y fecha_proyectada
-```
-
-> *"Al paso de ahorro e ingresos que llevas, conseguirás el carro a los 31 años y 4 meses
-> (te faltan 3 años 2 meses). Para lograrlo antes de los 30 necesitas +$420/mes."*
-
-Si vas adelantado respecto a la meta → mensaje en 🟢; si vas atrasado → 🟡/🔴 con el
-empujón concreto (cuánto más ahorrar o ingresar).
+Cada meta convierte su `fecha_estimada` en **edad** (años/meses entre `BIRTH_DATE` y la
+fecha). Con fecha objetivo: 🟢 si vas en camino, 🟡/🔴 con el empujón concreto (cuánto
+ahorrar/mes). Sin fecha objetivo: solo la fecha estimada según tu ritmo.
 
 ---
 
-## 4. Simulador "¿y si subo mis ingresos?"
+## 4. Simulador de cascada "¿y si ahorro más?"
 
-Función estrella del dashboard. Dado un aumento `Δ` de ingreso mensual destinado a una
-meta:
+Función estrella de **Predicciones**. Un aumento `Δ` de ahorro mensual se aplica a **toda
+la cola** y adelanta cada meta respetando el orden:
 
 ```
-nueva_fecha   = hoy + (restante / (ahorro_actual + Δ)) meses
-meses_ahorrados = fecha_proyectada_actual - nueva_fecha
+meses_meta(rate) = ceil((objetivo_acumulado - pool) / rate)
+base  = meses_meta(ahorro_mensual)
+nueva = meses_meta(ahorro_mensual + Δ)
+meses_ahorrados = base - nueva     # por cada meta de la cola
 ```
 
-Mensaje tipo: *"Si subes tus ingresos $300/mes hacia el carro, lo tendrías ~9 meses
-antes."* Esto convierte la app en un juego: cada dólar extra mueve la aguja.
+El dashboard muestra la línea de tiempo (carro → casa → …) con `fecha_base → fecha_nueva`
+y "N meses antes" por meta, más la proyección de patrimonio con la curva extra. Cada dólar
+extra mueve toda la aguja.
 
 ---
 

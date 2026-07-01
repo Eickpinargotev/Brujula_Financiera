@@ -178,8 +178,8 @@ src/brujula/
 - [x] Capa de datos (modelos + engine + siembra inicial; bootstrap en el arranque)
 - [x] Transcripción ElevenLabs Scribe v2 (servicio + línea de costo)
 - [x] Agente LangGraph (guardián, confirmación, memoria 7 interacciones, consultas)
-- [ ] Lógica financiera (`domain/`: sobres acumulados, forecast, motivador) — base en `domain/finance.py`
+- [x] Lógica financiera (`domain/budget`, `goals`, `forecast`: semáforo, metas, proyección y simulador). Pendiente: semáforo **acumulado** con arrastre (hoy es por mes).
 - [ ] Bot de Telegram (auth, voz, confirmación) — cablear el agente al polling
-- [ ] Dashboard + login + gráficos
-- [ ] Pruebas en Docker (smoke, finance, usage, transcription, db_seed, agent_*)
+- [x] Dashboard + login + gráficos (FastAPI + Jinja2 + CSS propio + ECharts vendorizado; login con sesión firmada y rate-limit; API JSON con CRUD manual y refresco en tiempo real). Datos de ejemplo: `db/seed_demo.py` (solo desarrollo).
+- [ ] Pruebas en Docker (smoke, finance, **domain**, usage, transcription, db_seed, agent_*) — añadidas las de `domain`; faltan las de la API web.
 - [ ] Despliegue EasyPanel

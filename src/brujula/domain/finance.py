@@ -25,4 +25,5 @@ def net_salary(
 
 def target_date_for_age(birth_date: date, edad: int) -> date:
     """Fecha en la que se cumplen `edad` años a partir de la fecha de nacimiento."""
-    return birth_date + relativedelta(years=edad)
+    objetivo: date = birth_date + relativedelta(years=edad)
+    return objetivo

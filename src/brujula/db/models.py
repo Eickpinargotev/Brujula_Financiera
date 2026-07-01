@@ -28,15 +28,26 @@ class Parameter(Base):
 
 
 class Goal(Base):
-    """Meta de ahorro pagada a contado (carro, casa)."""
+    """Meta de ahorro pagada a contado (carro, casa, dron…).
+
+    Las metas se financian en **cascada por prioridad**: todo el ahorro se acumula en la
+    meta de menor `prioridad` (1 = primera) hasta completarla; luego pasa a la siguiente.
+    Por eso `ahorrado` NO se guarda: se deriva del profit total repartido por prioridad.
+
+    La fecha objetivo es **opcional** y solo informativa: puede venir de `edad_objetivo`
+    (nacimiento + edad) o de `fecha_objetivo` (fecha exacta); si ambas son nulas, la meta
+    no tiene fecha límite y solo se muestra la fecha estimada según el ritmo de ahorro.
+    """
 
     __tablename__ = "goals"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     nombre: Mapped[str] = mapped_column(String, unique=True)
     monto_objetivo: Mapped[float] = mapped_column(Float)
-    edad_objetivo: Mapped[int] = mapped_column(Integer)  # fecha = nacimiento + edad
-    ahorrado: Mapped[float] = mapped_column(Float, default=0.0)
+    prioridad: Mapped[int] = mapped_column(Integer, default=100)  # 1 = primera en la cola
+    emoji: Mapped[str | None] = mapped_column(String, nullable=True)
+    edad_objetivo: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    fecha_objetivo: Mapped[date | None] = mapped_column(Date, nullable=True)
 
 
 class Envelope(Base):

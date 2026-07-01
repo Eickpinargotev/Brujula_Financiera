@@ -23,10 +23,22 @@ _DEFAULT_PARAMETERS: dict[str, tuple[str, str]] = {
     "currency": ("USD", "Moneda"),
 }
 
-# Metas pagadas a contado (fecha objetivo = nacimiento + edad_objetivo).
+# Metas en cascada por prioridad (1 = primera). Fecha objetivo opcional (edad o exacta).
 _DEFAULT_GOALS: list[dict[str, object]] = [
-    {"nombre": "carro", "monto_objetivo": 27000.0, "edad_objetivo": 30},
-    {"nombre": "casa", "monto_objetivo": 100000.0, "edad_objetivo": 35},
+    {
+        "nombre": "carro",
+        "monto_objetivo": 27000.0,
+        "edad_objetivo": 30,
+        "prioridad": 1,
+        "emoji": "🚗",
+    },
+    {
+        "nombre": "casa",
+        "monto_objetivo": 100000.0,
+        "edad_objetivo": 35,
+        "prioridad": 2,
+        "emoji": "🏠",
+    },
 ]
 
 # Sobres: los % se aplican sobre el ingreso TOTAL del mes; 'ahorro' es el residual → metas.

@@ -1,0 +1,292 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="robots" content="noindex,nofollow" />
+  <title>Brújula</title>
+  <link rel="stylesheet" href="{{ url_for('static', path='/css/app.css') }}" />
+  <script defer src="{{ url_for('static', path='/vendor/echarts.min.js') }}"></script>
+  <script defer src="{{ url_for('static', path='/js/app.js') }}"></script>
+</head>
+<body>
+  <div class="aurora"></div>
+  <div class="layout">
+
+    <!-- ===== Panel izquierdo ===== -->
+    <aside class="sidebar glass">
+      <div class="brand">
+        <span class="brand-logo">🧭</span>
+        <span class="brand-name">Brújula</span>
+      </div>
+
+      <nav class="nav">
+        <button class="nav-item active" data-view="resumen">
+          <span class="nav-ico">◈</span> Resumen
+        </button>
+        <button class="nav-item" data-view="movimientos">
+          <span class="nav-ico">⇅</span> Movimientos
+        </button>
+        <button class="nav-item" data-view="metas">
+          <span class="nav-ico">◎</span> Metas
+        </button>
+        <button class="nav-item" data-view="predicciones">
+          <span class="nav-ico">∿</span> Predicciones
+        </button>
+      </nav>
+
+      <div class="sidebar-foot">
+        <div class="status-dot"><span class="dot"></span> <span id="sync-label">en vivo</span></div>
+        <a href="/logout" class="btn btn-ghost btn-sm">Salir</a>
+      </div>
+    </aside>
+
+    <!-- ===== Contenido ===== -->
+    <main class="content">
+      <header class="topbar">
+        <div>
+          <h1 id="view-title">Resumen</h1>
+          <p class="muted" id="view-sub">Mes <span id="mes-actual">—</span></p>
+        </div>
+        <button class="btn btn-ghost btn-sm" id="btn-refresh" title="Refrescar">⟳</button>
+      </header>
+
+      <!-- Única región con scroll: el contenido de las vistas. -->
+      <div class="scroll-area">
+
+      <!-- ----- Vista: Resumen ----- -->
+      <section class="view active" data-view="resumen">
+        <div class="kpi-grid">
+          <div class="kpi glass" data-accent="cyan">
+            <span class="kpi-label">Ingreso del mes</span>
+            <span class="kpi-value" id="kpi-ingreso">—</span>
+          </div>
+          <div class="kpi glass" data-accent="violet">
+            <span class="kpi-label">Gasto del mes</span>
+            <span class="kpi-value" id="kpi-gasto">—</span>
+          </div>
+          <div class="kpi glass" data-accent="green">
+            <span class="kpi-label">Ahorro del mes</span>
+            <span class="kpi-value" id="kpi-ahorro">—</span>
+          </div>
+          <div class="kpi glass" data-accent="amber">
+            <span class="kpi-label">Tasa de ahorro</span>
+            <span class="kpi-value" id="kpi-tasa">—</span>
+          </div>
+        </div>
+
+        <div class="card glass" id="insights-card">
+          <div class="card-head"><h2>Insights</h2><span class="muted">en tiempo real</span></div>
+          <div class="insights" id="insights-list"></div>
+        </div>
+
+        <div class="grid-2">
+          <div class="card glass">
+            <div class="card-head"><h2>Flujo mensual</h2><span class="muted">últimos 6 meses</span></div>
+            <div class="chart" id="chart-flujo"></div>
+          </div>
+          <div class="card glass">
+            <div class="card-head"><h2>Gasto por categoría</h2><span class="muted" id="mes-cat">—</span></div>
+            <div class="chart" id="chart-categorias"></div>
+          </div>
+        </div>
+
+        <div class="card glass">
+          <div class="card-head"><h2>Sobres del mes</h2><span class="muted">semáforo presupuestario</span></div>
+          <div class="sobres-grid" id="sobres-grid"></div>
+        </div>
+      </section>
+
+      <!-- ----- Vista: Movimientos ----- -->
+      <section class="view" data-view="movimientos">
+        <div class="grid-mov">
+          <div class="card glass form-card">
+            <div class="card-head">
+              <h2 id="mov-form-title">Agregar</h2>
+              <button type="button" class="btn btn-ghost btn-sm" id="mov-cancel-edit" hidden>Cancelar</button>
+            </div>
+            <form id="mov-form" class="mov-form" autocomplete="off">
+              <div class="seg" id="tipo-seg">
+                <button type="button" class="seg-btn active" data-tipo="gasto">Gasto</button>
+                <button type="button" class="seg-btn" data-tipo="ingreso">Ingreso</button>
+              </div>
+              <input type="hidden" name="tipo" id="f-tipo" value="gasto" />
+
+              <label class="field">
+                <span>Monto</span>
+                <input type="number" step="0.01" min="0.01" name="monto" id="f-monto" required placeholder="0.00" />
+              </label>
+              <label class="field">
+                <span>Fecha</span>
+                <input type="date" name="fecha" id="f-fecha" required />
+              </label>
+              <label class="field full">
+                <span>Descripción</span>
+                <input type="text" name="descripcion" id="f-desc" required maxlength="200" placeholder="Ej. mercado, sueldo…" />
+              </label>
+
+              <label class="field gasto-only">
+                <span>Sobre</span>
+                <select name="sobre" id="f-sobre"></select>
+              </label>
+              <label class="field gasto-only">
+                <span>Categoría</span>
+                <select name="categoria" id="f-categoria"></select>
+              </label>
+              <label class="field ingreso-only" hidden>
+                <span>Fuente</span>
+                <select name="fuente_ingreso" id="f-fuente"></select>
+              </label>
+              <label class="field">
+                <span>Comercio <em class="muted">(opcional)</em></span>
+                <input type="text" name="comercio" id="f-comercio" maxlength="80" placeholder="Ej. Amazon" />
+              </label>
+
+              <button type="submit" class="btn btn-primary full" id="mov-submit">Registrar</button>
+              <p class="form-error" id="mov-error" hidden></p>
+            </form>
+          </div>
+
+          <div class="card glass mov-table-card">
+            <div class="card-head">
+              <h2>Movimientos</h2>
+              <div class="seg seg-sm" id="filtro-seg">
+                <button type="button" class="seg-btn active" data-filtro="">Todos</button>
+                <button type="button" class="seg-btn" data-filtro="ingreso">Ingresos</button>
+                <button type="button" class="seg-btn" data-filtro="gasto">Gastos</button>
+              </div>
+            </div>
+            <div class="table-wrap">
+              <table class="tbl">
+                <thead>
+                  <tr><th>Fecha</th><th>Detalle</th><th>Etiqueta</th><th class="num">Monto</th><th></th></tr>
+                </thead>
+                <tbody id="mov-tbody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ----- Vista: Metas ----- -->
+      <section class="view" data-view="metas">
+        <div class="view-head-row">
+          <p class="muted">Se financian en <b>cascada por prioridad</b>: todo el ahorro llena la meta #1;
+            al comprarla, empieza la #2 desde cero.</p>
+          <button class="btn btn-primary btn-sm" id="btn-nueva-meta" type="button">＋ Nueva meta</button>
+        </div>
+        <div class="metas-grid" id="metas-grid"></div>
+      </section>
+
+      <!-- ----- Vista: Predicciones ----- -->
+      <section class="view" data-view="predicciones">
+        <div class="pred-top">
+          <div class="kpi glass" data-accent="cyan">
+            <span class="kpi-label">Patrimonio actual</span>
+            <span class="kpi-value" id="pred-pool">—</span>
+            <span class="kpi-sub" id="pred-pool-sub">ahorro histórico + saldo inicial</span>
+          </div>
+          <div class="kpi glass" data-accent="green">
+            <span class="kpi-label">Ahorro promedio</span>
+            <span class="kpi-value" id="pred-ahorro">—</span>
+            <span class="kpi-sub">estimado por mes</span>
+          </div>
+          <div class="kpi glass" data-accent="violet">
+            <span class="kpi-label">Meta en curso</span>
+            <span class="kpi-value" id="pred-proxima">—</span>
+            <span class="kpi-sub" id="pred-proxima-sub">—</span>
+          </div>
+        </div>
+
+        <div class="card glass">
+          <div class="card-head">
+            <h2>Simulador de ahorro</h2>
+            <span class="muted">¿y si ahorro más cada mes?</span>
+          </div>
+          <div class="sim2">
+            <div class="sim2-control">
+              <span class="sim2-label">Ahorro extra mensual</span>
+              <span class="sim2-amount" id="sim-delta-label">$0</span>
+              <input type="range" id="sim-delta" min="0" max="2000" step="50" value="0" />
+              <p class="muted sim2-hint">Se suma a tu ahorro promedio y adelanta toda la cola de metas.</p>
+            </div>
+            <div class="sim2-timeline" id="sim-timeline"></div>
+          </div>
+        </div>
+
+        <div class="grid-2">
+          <div class="card glass">
+            <div class="card-head"><h2>Proyección de patrimonio</h2><span class="muted">12 meses</span></div>
+            <div class="chart" id="chart-proyeccion"></div>
+          </div>
+          <div class="card glass">
+            <div class="card-head"><h2>Tendencia de ahorro</h2><span class="muted">profit por mes</span></div>
+            <div class="chart" id="chart-ahorro"></div>
+          </div>
+        </div>
+      </section>
+
+      </div><!-- /.scroll-area -->
+    </main>
+  </div>
+
+  <!-- Botón flotante de refresco con confirmación visual -->
+  <button id="fab-refresh" class="fab" type="button" title="Actualizar datos" aria-label="Actualizar datos">
+    <span class="fab-ico">⟳</span>
+  </button>
+  <div id="toast" class="toast" role="status" aria-live="polite">
+    <span class="toast-ico">✓</span><span id="toast-msg">Actualizado</span>
+  </div>
+
+  <!-- Modal de meta (crear / editar) -->
+  <div id="meta-modal" class="modal-overlay" hidden>
+    <div class="modal glass" role="dialog" aria-modal="true">
+      <div class="modal-head">
+        <h2 id="meta-modal-title">Nueva meta</h2>
+        <button type="button" class="modal-close" id="meta-modal-close" aria-label="Cerrar">✕</button>
+      </div>
+      <form id="meta-form" class="meta-form" autocomplete="off">
+        <input type="hidden" id="meta-id" />
+        <div class="meta-form-row">
+          <label class="field meta-emoji-field">
+            <span>Icono</span>
+            <input type="text" id="meta-emoji" maxlength="4" placeholder="🎯" />
+          </label>
+          <label class="field grow">
+            <span>Nombre</span>
+            <input type="text" id="meta-nombre" required maxlength="40" placeholder="Ej. dron, viaje, moto…" />
+          </label>
+        </div>
+        <div class="emoji-suggest" id="emoji-suggest"></div>
+        <label class="field">
+          <span>Monto objetivo</span>
+          <input type="number" id="meta-monto" required min="1" step="0.01" placeholder="0.00" />
+        </label>
+
+        <div class="field">
+          <span>Fecha límite <em class="muted">(opcional)</em></span>
+          <div class="seg" id="meta-fecha-seg">
+            <button type="button" class="seg-btn active" data-fecha="edad">Por edad</button>
+            <button type="button" class="seg-btn" data-fecha="fecha">Fecha exacta</button>
+            <button type="button" class="seg-btn" data-fecha="none">Sin límite</button>
+          </div>
+        </div>
+        <label class="field meta-fecha-input" data-for="edad">
+          <span>Antes de los … años</span>
+          <input type="number" id="meta-edad" min="1" max="120" step="1" placeholder="Ej. 32" />
+        </label>
+        <label class="field meta-fecha-input" data-for="fecha" hidden>
+          <span>Fecha objetivo</span>
+          <input type="date" id="meta-fecha" />
+        </label>
+
+        <p class="form-error" id="meta-error" hidden></p>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-ghost" id="meta-cancel">Cancelar</button>
+          <button type="submit" class="btn btn-primary" id="meta-save">Guardar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</body>
+</html>

@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="robots" content="noindex,nofollow" />
+  <title>Brújula</title>
+  <link rel="stylesheet" href="{{ url_for('static', path='/css/app.css') }}" />
+</head>
+<body class="login-body">
+  <div class="aurora"></div>
+  <main class="login-card glass">
+    <div class="login-brand">
+      <span class="login-logo">🧭</span>
+      <h1>Brújula</h1>
+      <p class="muted">Copiloto financiero privado</p>
+    </div>
+    <form method="post" action="/login" class="login-form" autocomplete="off">
+      <label class="field">
+        <span>Contraseña</span>
+        <input type="password" name="password" autofocus required
+               placeholder="••••••••" />
+      </label>
+      {% if error %}
+      <p class="form-error">{{ error }}</p>
+      {% endif %}
+      <button type="submit" class="btn btn-primary">Entrar</button>
+    </form>
+  </main>
+</body>
+</html>

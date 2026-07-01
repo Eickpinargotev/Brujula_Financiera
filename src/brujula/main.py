@@ -14,11 +14,11 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
-from fastapi.responses import HTMLResponse
 
 from brujula.config.settings import get_settings
 from brujula.core.logging import configure_logging
 from brujula.db.bootstrap import bootstrap_database
+from brujula.web.app import register_web
 
 settings = get_settings()
 configure_logging(settings.app_env)
@@ -70,23 +70,10 @@ app = FastAPI(
     openapi_url=None,
 )
 
-# TODO(desarrollo): montar el dashboard y el login.
-#   from brujula.web.app import register_web
-#   register_web(app, settings)
+# Monta el dashboard (login + páginas + API de datos) y /static.
+register_web(app, settings)
 
 
 @app.get("/health", include_in_schema=False)
 async def health() -> dict[str, str]:
     return {"status": "ok", "env": settings.app_env}
-
-
-@app.get("/", response_class=HTMLResponse, include_in_schema=False)
-async def placeholder() -> str:
-    return (
-        "<!doctype html><html lang='es'><head><meta charset='utf-8'>"
-        "<title>Brújula Financiera</title></head><body style='font-family:system-ui;"
-        "display:grid;place-items:center;height:100vh;margin:0'>"
-        "<div><h1>🧭 Brújula Financiera</h1>"
-        "<p>Scaffolding listo. Dashboard en construcción.</p>"
-        "</div></body></html>"
-    )
