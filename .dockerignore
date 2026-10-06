@@ -10,10 +10,38 @@ __pycache__
 
 # Secretos y datos jamás en la imagen
 .env
+.env.*
 *.env
+*.pem
+*.key
 data/
 *.db
+*.db-*
+*.db.*
+*.sqlite
+*.sqlite-*
+*.sqlite.*
 *.sqlite3
+*.sqlite3-*
+*.sqlite3.*
+outputs/
+exports/
+imports/
+backups/
+recovery/
+*.csv
+*.tsv
+*.xls
+*.xlsx
+*.ods
+*.sql
+*.dump
+*.bak
+*.bak-*
+*.bak.*
+.claude/
+.codex/
+.DS_Store
 
 # No hace falta en la imagen
 tests/

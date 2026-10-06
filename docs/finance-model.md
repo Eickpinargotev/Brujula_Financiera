@@ -26,7 +26,11 @@ Con los valores actuales:
 > El impuesto a la renta se deja en 0 por defecto (con deducción de gastos personales
 > suele anularse a este nivel de ingreso); es un parámetro ajustable.
 
-**Fuentes de ingreso** (las distingue el agente): `trabajo` · `proyecto_personal`.
+**Fuentes de ingreso** (en la UI: *categorías de ingreso*): `trabajo` ·
+`proyecto_personal`. Viven en la tabla `income_sources` y el dueño puede
+crear/renombrar/borrar las que quiera desde el dashboard; no llevan tope porque el ingreso
+no se presupuesta. Renombrar una arrastra los ingresos que la usaban, y no se puede borrar
+una que todavía tenga movimientos.
 
 ---
 
@@ -54,9 +58,60 @@ evalúa de forma **acumulada** por sobre, para que lo ahorrado antes cubra un ga
 después (efecto arrastre sin congelar plata lejos de las metas):
 
 ```
-balance_sobre(hasta_mes) = Σ asignacion - Σ gastado
-🟢 balance ≥ 0 (vas bien) · 🟡 cerca del tope · 🔴 te pasaste
+tope(sobre, mes) = % del ingreso REAL del mes  |  monto fijo
+arrastre(sobre)  = Σ_meses_anteriores (tope_mes − gastado_mes)     # todo el historial
+margen(sobre)    = tope + arrastre − gastado
+🟢 gastado dentro del margen · 🟡 cerca del límite · 🔴 lo superó
 ```
+
+**El arrastre NO se suma al tope que se muestra.** El tope es el del mes ("esto me tocaba
+gastar") y el arrastre va aparte ("y además me puedo pasar esto sin problema"). Solo actúa
+como colchón para el color: pasarse del tope del mes no es rojo si el arrastre lo cubre.
+Y si no gastaste nada en el mes, nunca es rojo — un arrastre negativo se ve en su línea,
+en rojo, pero no describe el mes en curso.
+
+**Cómo se calcula:** mes a mes, desde el primer movimiento del historial hasta el día
+anterior al mes que se muestra. La asignación de cada mes usa el **ingreso REAL de ese
+mes** (10 % de $0 = $0), así que gastar sin ingresos deja el sobre en negativo y ese
+negativo se arrastra. Ejemplo: junio ingresa $1000, familia (10 %) tiene $100 y gastas $50
+→ julio arranca con tope $100 y **arrastre +$50**. Si en junio gastas $115, julio arranca
+con **arrastre −$15**.
+
+El arrastre aplica a **todas** las categorías con tope. Las categorías sin tope
+(`valor = 0`) salen como 🔘 *libre*: no asignan ni arrastran, solo muestran lo gastado.
+El bloque **Categorías sigue el periodo elegido en Resumen**, igual que los KPIs y la
+distribución del gasto. Gastado incluye solo las fechas seleccionadas. Las asignaciones
+se suman mes a mes: porcentajes y residual usan los ingresos dentro del rango; los topes
+fijos cuentan una vez por cada mes calendario incluido, incluso si es parcial, sin
+prorrateo diario. El arrastre corresponde a los meses anteriores al primer mes del rango;
+no incorpora movimientos posteriores ni vuelve a contar meses incluidos en la selección.
+La cabecera muestra el rango y la fecha de corte del arrastre. Sin filtro se mantiene
+el último mes con datos como periodo inicial.
+
+**Préstamos:** `prestamo` existe como categoría de ingreso y de egreso. El detalle es el
+nombre de la otra persona y se normaliza (mayúsculas, espacios y tildes no importan). Los
+movimientos se concilian por persona en orden `fecha + id`, aplicando cada pago al préstamo
+más antiguo (FIFO):
+
+- Si yo presto: el egreso abre una cuenta por cobrar; el ingreso posterior la salda.
+- Si me prestan: el ingreso abre una cuenta por pagar; el egreso posterior la salda.
+- Cada préstamo se deriva como `pendiente`, `abonado` o `pagado`; no se borra el historial.
+- Un pago mayor al saldo se bloquea con un aviso; si el excedente es un nuevo préstamo,
+  debe registrarse como un movimiento separado.
+
+El KPI muestra por separado lo pendiente **por cobrar** y **por pagar**. Los estados no se
+guardan: se reconstruyen desde todo el historial, así que editar o borrar una fecha/monto
+recalcula automáticamente las aplicaciones posteriores.
+
+En **Movimientos**, los préstamos se excluyen de `Todos`, `Ingresos` y `Gastos` y viven en
+su sección propia. Allí se agrupan por persona: cada cuenta muestra el saldo vigente, si
+es por cobrar o por pagar, y sus movimientos del periodo. Una cuenta abierta siempre se
+muestra aunque el préstamo original sea anterior al rango seleccionado.
+
+Los préstamos también quedan fuera de toda la contabilidad ordinaria del **Resumen**:
+ingreso, gasto, balance, tasa de ahorro, flujo mensual, gasto por categoría, arrastres,
+patrimonio y avance de metas. Son movimientos de capital, no dinero ganado ni consumido;
+sus saldos se consultan exclusivamente en la sección `Préstamos`.
 
 **Pago:** siempre con tarjeta (no se registra método de pago).
 
@@ -73,8 +128,7 @@ pestaña **Metas** del dashboard; no viven en `.env`, viven en la tabla `goals`.
 **Patrimonio (pool):** el reparto parte del ahorro acumulado real:
 
 ```
-profit_total = Σ ingresos − Σ gastos   (todos los movimientos, histórico)
-pool         = saldo_inicial + profit_total
+pool = Σ saldos de cuentas
 ```
 
 **Reparto en cascada** (`domain/goals.asignar_cascada`): recorre las metas por prioridad
@@ -138,29 +192,41 @@ extra mueve toda la aguja.
 ## 6. Esquema de datos (implementado en `db/models.py`)
 
 > **Todo vive en la base de datos, NADA en `.env`.** Al iniciar, `db/seed.py` siembra los
-> parámetros, metas y sobres por defecto (idempotente). Se editan/consultan por Telegram
-> o el dashboard.
+> parámetros, metas, categorías y cuentas por defecto (idempotente). Se editan y consultan
+> desde el dashboard.
 
 ```
 parameters   (key, value, description)   # birth_date, base_salary, iess_personal_rate,
                                           # income_tax_monthly, extra_income_baseline,
-                                          # saldo_inicial, timezone, currency
-goals        (id, nombre, monto_objetivo, edad_objetivo, ahorrado)   # carro, casa
-envelopes    (id, nombre, tipo[porcentaje|fijo|residual], valor, arrastre)
+                                          # timezone, currency
+goals        (id, nombre, monto_objetivo, prioridad, emoji, edad_objetivo,
+              fecha_objetivo, ahorro_mensual, creada_en)   # carro, casa (cascada)
+goal_commitments (id, goal_id→goals, fecha, ahorro_mensual, ahorrado,
+              meses_estimados, fecha_estimada, creado_en)  # historial del compromiso
+envelopes    (id, nombre, tipo[porcentaje|fijo|residual], valor, arrastre)  # categorías de egreso
+income_sources (id, nombre)                              # categorías de ingreso (sin tope)
+accounts     (id, nombre, moneda, activa, creada_en)      # bancos/billeteras/exchanges
 operaciones  (id, nombre, fecha, descripcion)            # compra que agrupa movimientos
 movimientos  (id, tipo[gasto|ingreso], fecha, monto, descripcion,
-              sobre, categoria,            # solo gastos
+              sobre,                       # solo gastos (única clasificación)
               fuente_ingreso,              # solo ingresos
-              comercio, grupo_id→operaciones, creado_en)
-recurrentes  (id, nombre, monto_base, iva, isd, periodicidad, sobre, categoria,
+              account_id→accounts, comercio, grupo_id→operaciones, creado_en)
+account_adjustments (id, account_id→accounts, fecha, monto, descripcion, creado_en)
+transfers    (id, source_account_id→accounts, destination_account_id→accounts,
+              fecha, monto, descripcion, creado_en)
+recurrentes  (id, nombre, monto_base, iva, isd, periodicidad, sobre,
               comercio, activo)            # suscripciones para pronóstico (Shopify…)
 ```
 
-**Tres dimensiones del movimiento** (gasto):
+**Dos dimensiones del movimiento** (gasto):
 - **sobre** (presupuesto): `pareja`, `familia`, `personal`, `iglesia`, `transporte`, `ahorro`.
-- **categoria** (tipo): `comida`, `hogar`, `tecnologia`, `regalo`, `salud`, `suscripcion`,
-  `educacion`, `transporte`, `impuestos`, `entretenimiento`, `iglesia`, `otros`.
 - **comercio** (a quién): Amazon, Shopify, Uber, Gobierno, supermercado, Iglesia…
 
+**Compromiso por meta:** `ahorro_mensual` fija el ritmo con el que se calcula la fecha
+estimada (`meses = faltante ÷ compromiso`; sin compromiso se usa el ahorro promedio).
+Cada cambio del compromiso guarda un hito en `goal_commitments` para ver cómo la fecha
+objetivo fue bajando desde que se creó la meta.
+
 Compras multi-costo (ej. laptop) = una `operacion` con varios `movimientos` (ítem +
-impuestos + envío), cada uno con su comercio. No se registra método de pago (siempre tarjeta).
+impuestos + envío), cada uno con su comercio y cuenta. Las transferencias entre cuentas
+propias se registran aparte y no modifican ingresos ni gastos.

@@ -13,9 +13,6 @@ def configure_logging(app_env: str = "development") -> None:
         format="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
     )
 
-    # httpx/httpcore registran la URL completa de la API de Telegram, que incluye el
-    # TOKEN del bot. Los subimos a WARNING para que el token nunca aparezca en los logs.
-    for noisy in ("httpx", "httpcore"):
+    # Evita ruido y posibles datos sensibles de solicitudes externas.
+    for noisy in ("httpx", "httpcore", "aiosqlite", "sqlalchemy.engine"):
         logging.getLogger(noisy).setLevel(logging.WARNING)
-    # python-telegram-bot en DEBUG es muy verboso; lo dejamos en INFO.
-    logging.getLogger("telegram").setLevel(logging.INFO)

@@ -5,16 +5,16 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="robots" content="noindex,nofollow" />
   <title>Brújula</title>
-  <link rel="stylesheet" href="{{ url_for('static', path='/css/app.css') }}" />
-  <script defer src="{{ url_for('static', path='/vendor/echarts.min.js') }}"></script>
-  <script defer src="{{ url_for('static', path='/js/app.js') }}"></script>
+  <link rel="stylesheet" href="{{ url_for('static', path='/css/app.css') }}?v={{ static_v }}" />
+  <script defer src="{{ url_for('static', path='/vendor/echarts.min.js') }}?v={{ static_v }}"></script>
+  <script defer src="{{ url_for('static', path='/js/period-picker.js') }}?v={{ static_v }}"></script>
+  <script defer src="{{ url_for('static', path='/js/app.js') }}?v={{ static_v }}"></script>
 </head>
-<body>
-  <div class="aurora"></div>
+<body class="private">
   <div class="layout">
 
     <!-- ===== Panel izquierdo ===== -->
-    <aside class="sidebar glass">
+    <aside class="sidebar">
       <div class="brand">
         <span class="brand-logo">🧭</span>
         <span class="brand-name">Brújula</span>
@@ -27,15 +27,15 @@
         <button class="nav-item" data-view="movimientos">
           <span class="nav-ico">⇅</span> Movimientos
         </button>
-        <button class="nav-item" data-view="metas">
-          <span class="nav-ico">◎</span> Metas
-        </button>
-        <button class="nav-item" data-view="predicciones">
-          <span class="nav-ico">∿</span> Predicciones
+        <button class="nav-item" data-view="reportes">
+          <span class="nav-ico">⤓</span> Reportes
         </button>
       </nav>
 
       <div class="sidebar-foot">
+        <button class="nav-item" id="btn-config" type="button">
+          <span class="nav-ico">⚙</span> Configuración
+        </button>
         <div class="status-dot"><span class="dot"></span> <span id="sync-label">en vivo</span></div>
         <a href="/logout" class="btn btn-ghost btn-sm">Salir</a>
       </div>
@@ -46,9 +46,15 @@
       <header class="topbar">
         <div>
           <h1 id="view-title">Resumen</h1>
-          <p class="muted" id="view-sub">Mes <span id="mes-actual">—</span></p>
+          <p class="muted" id="view-sub"><span id="periodo-lbl">—</span></p>
         </div>
-        <button class="btn btn-ghost btn-sm" id="btn-refresh" title="Refrescar">⟳</button>
+        <div class="topbar-actions">
+          <button class="btn btn-ghost btn-sm eye-btn" id="btn-eye" type="button"
+                  title="Mostrar/ocultar montos" aria-label="Mostrar u ocultar montos">
+            <span class="eye-on">🙈</span><span class="eye-off">👁️</span>
+          </button>
+          <button class="btn btn-ghost btn-sm" id="btn-refresh" title="Refrescar">⟳</button>
+        </div>
       </header>
 
       <!-- Única región con scroll: el contenido de las vistas. -->
@@ -56,51 +62,83 @@
 
       <!-- ----- Vista: Resumen ----- -->
       <section class="view active" data-view="resumen">
+        <div class="mov-range">
+          <button type="button" class="period-trigger" data-period="res" aria-haspopup="dialog" aria-controls="period-dialog" aria-expanded="false">
+              <span class="period-trigger-icon" aria-hidden="true">▦</span>
+              <span><small>Periodo</small><strong id="res-period-label">Elegir periodo</strong></span>
+              <span class="period-trigger-chevron" aria-hidden="true">⌄</span>
+            </button>
+            <div class="seg seg-sm period-quick" id="res-range-seg" role="group" aria-label="Atajos de periodo">
+              <button type="button" class="seg-btn" data-preset="dia">Último día</button>
+              <button type="button" class="seg-btn active" data-preset="mes">Último mes</button>
+              <button type="button" class="seg-btn" data-preset="todo">Todo</button>
+            </div>
+        </div>
+
         <div class="kpi-grid">
-          <div class="kpi glass" data-accent="cyan">
-            <span class="kpi-label">Ingreso del mes</span>
-            <span class="kpi-value" id="kpi-ingreso">—</span>
+          <div class="kpi card" data-accent="blue">
+            <span class="kpi-label">Dinero en cuentas</span>
+            <span class="kpi-value amount" id="kpi-cuentas">—</span>
           </div>
-          <div class="kpi glass" data-accent="violet">
-            <span class="kpi-label">Gasto del mes</span>
-            <span class="kpi-value" id="kpi-gasto">—</span>
+          <div class="kpi card" data-accent="accent">
+            <span class="kpi-label">Ingreso del periodo</span>
+            <span class="kpi-value amount" id="kpi-ingreso">—</span>
           </div>
-          <div class="kpi glass" data-accent="green">
-            <span class="kpi-label">Ahorro del mes</span>
-            <span class="kpi-value" id="kpi-ahorro">—</span>
+          <div class="kpi card" data-accent="violet">
+            <span class="kpi-label">Gasto del periodo</span>
+            <span class="kpi-value amount" id="kpi-gasto">—</span>
           </div>
-          <div class="kpi glass" data-accent="amber">
+          <div class="kpi card" data-accent="green">
+            <span class="kpi-label">Balance del periodo</span>
+            <span class="kpi-value amount" id="kpi-ahorro">—</span>
+          </div>
+          <div class="kpi card" data-accent="amber">
             <span class="kpi-label">Tasa de ahorro</span>
             <span class="kpi-value" id="kpi-tasa">—</span>
           </div>
         </div>
 
-        <div class="card glass" id="insights-card">
-          <div class="card-head"><h2>Insights</h2><span class="muted">en tiempo real</span></div>
-          <div class="insights" id="insights-list"></div>
+        <div class="card accounts-card">
+          <div class="card-head"><h2>Dónde está mi dinero</h2><span class="muted">saldo actual</span></div>
+          <div class="account-balance-grid" id="account-balance-grid"></div>
         </div>
 
         <div class="grid-2">
-          <div class="card glass">
+          <div class="card">
             <div class="card-head"><h2>Flujo mensual</h2><span class="muted">últimos 6 meses</span></div>
             <div class="chart" id="chart-flujo"></div>
           </div>
-          <div class="card glass">
+          <div class="card">
             <div class="card-head"><h2>Gasto por categoría</h2><span class="muted" id="mes-cat">—</span></div>
-            <div class="chart" id="chart-categorias"></div>
+            <div class="chart" id="chart-sobres"></div>
           </div>
         </div>
 
-        <div class="card glass">
-          <div class="card-head"><h2>Sobres del mes</h2><span class="muted">semáforo presupuestario</span></div>
+        <div class="card">
+          <div class="card-head">
+            <h2>Categorías</h2>
+            <span class="muted" id="sobres-mes">—</span>
+          </div>
           <div class="sobres-grid" id="sobres-grid"></div>
         </div>
       </section>
 
       <!-- ----- Vista: Movimientos ----- -->
       <section class="view" data-view="movimientos">
+        <div class="mov-range">
+          <button type="button" class="period-trigger" data-period="mov" aria-haspopup="dialog" aria-controls="period-dialog" aria-expanded="false">
+              <span class="period-trigger-icon" aria-hidden="true">▦</span>
+              <span><small>Periodo</small><strong id="mov-period-label">Elegir periodo</strong></span>
+              <span class="period-trigger-chevron" aria-hidden="true">⌄</span>
+            </button>
+            <div class="seg seg-sm period-quick" id="mov-range-seg" role="group" aria-label="Atajos de periodo">
+              <button type="button" class="seg-btn" data-preset="dia">Último día</button>
+              <button type="button" class="seg-btn active" data-preset="mes">Último mes</button>
+              <button type="button" class="seg-btn" data-preset="todo">Todo</button>
+            </div>
+        </div>
         <div class="grid-mov">
-          <div class="card glass form-card">
+          <div class="card form-card">
             <div class="card-head">
               <h2 id="mov-form-title">Agregar</h2>
               <button type="button" class="btn btn-ghost btn-sm" id="mov-cancel-edit" hidden>Cancelar</button>
@@ -109,6 +147,7 @@
               <div class="seg" id="tipo-seg">
                 <button type="button" class="seg-btn active" data-tipo="gasto">Gasto</button>
                 <button type="button" class="seg-btn" data-tipo="ingreso">Ingreso</button>
+                <button type="button" class="seg-btn" data-tipo="transferencia">Transferencia</button>
               </div>
               <input type="hidden" name="tipo" id="f-tipo" value="gasto" />
 
@@ -121,45 +160,77 @@
                 <input type="date" name="fecha" id="f-fecha" required />
               </label>
               <label class="field full">
-                <span>Descripción</span>
+                <span id="f-desc-label">Descripción</span>
                 <input type="text" name="descripcion" id="f-desc" required maxlength="200" placeholder="Ej. mercado, sueldo…" />
+                <small class="field-help" id="loan-help" hidden>Usa siempre el mismo nombre. Se conciliará con los préstamos más antiguos primero.</small>
               </label>
 
-              <label class="field gasto-only">
-                <span>Sobre</span>
-                <select name="sobre" id="f-sobre"></select>
+              <label class="field full movement-account">
+                <span id="f-account-label">Cuenta de origen</span>
+                <select name="account_id" id="f-account" required></select>
               </label>
-              <label class="field gasto-only">
+
+              <div class="field full transfer-only" hidden>
+                <span>Cuenta de origen</span>
+                <select id="f-transfer-source"></select>
+              </div>
+              <div class="field full transfer-only" hidden>
+                <span>Cuenta de destino</span>
+                <select id="f-transfer-destination"></select>
+              </div>
+
+              <div class="field full gasto-only">
                 <span>Categoría</span>
-                <select name="categoria" id="f-categoria"></select>
-              </label>
-              <label class="field ingreso-only" hidden>
-                <span>Fuente</span>
-                <select name="fuente_ingreso" id="f-fuente"></select>
-              </label>
-              <label class="field">
-                <span>Comercio <em class="muted">(opcional)</em></span>
-                <input type="text" name="comercio" id="f-comercio" maxlength="80" placeholder="Ej. Amazon" />
-              </label>
+                <div class="with-add">
+                  <select name="categoria" id="f-categoria"></select>
+                  <button type="button" class="add-btn" id="btn-add-cat"
+                          title="Nueva categoría" aria-label="Nueva categoría">＋</button>
+                </div>
+                <div class="new-cat" id="new-cat" hidden>
+                  <input type="text" id="new-cat-name" maxlength="30" placeholder="Nombre de la categoría" />
+                  <button type="button" class="btn btn-primary btn-sm" id="new-cat-save">Crear</button>
+                  <button type="button" class="btn btn-ghost btn-sm" id="new-cat-cancel">✕</button>
+                </div>
+              </div>
+              <div class="field full ingreso-only" hidden>
+                <span>Categoría</span>
+                <div class="with-add">
+                  <select name="fuente_ingreso" id="f-fuente"></select>
+                  <button type="button" class="add-btn" id="btn-add-fuente"
+                          title="Nueva categoría de ingreso" aria-label="Nueva categoría de ingreso">＋</button>
+                </div>
+                <div class="new-cat" id="new-fuente" hidden>
+                  <input type="text" id="new-fuente-name" maxlength="30" placeholder="Nombre de la categoría" />
+                  <button type="button" class="btn btn-primary btn-sm" id="new-fuente-save">Crear</button>
+                  <button type="button" class="btn btn-ghost btn-sm" id="new-fuente-cancel">✕</button>
+                </div>
+              </div>
 
               <button type="submit" class="btn btn-primary full" id="mov-submit">Registrar</button>
               <p class="form-error" id="mov-error" hidden></p>
             </form>
           </div>
 
-          <div class="card glass mov-table-card">
+          <div class="card mov-table-card">
             <div class="card-head">
               <h2>Movimientos</h2>
-              <div class="seg seg-sm" id="filtro-seg">
-                <button type="button" class="seg-btn active" data-filtro="">Todos</button>
-                <button type="button" class="seg-btn" data-filtro="ingreso">Ingresos</button>
-                <button type="button" class="seg-btn" data-filtro="gasto">Gastos</button>
+              <div class="mov-filters">
+                <div class="seg seg-sm" id="filtro-seg">
+                  <button type="button" class="seg-btn active" data-filtro="">Todos</button>
+                  <button type="button" class="seg-btn" data-filtro="ingreso">Ingresos</button>
+                  <button type="button" class="seg-btn" data-filtro="gasto">Gastos</button>
+                  <button type="button" class="seg-btn" data-filtro="transferencia">Transferencias</button>
+                  <button type="button" class="seg-btn" data-filtro="prestamo">Préstamos</button>
+                </div>
+                <select id="filtro-cat" class="filtro-cat" aria-label="Filtrar por categoría"></select>
+                <select id="filtro-cuenta" class="filtro-cat" aria-label="Filtrar por cuenta"></select>
               </div>
             </div>
-            <div class="table-wrap">
+            <div class="loan-groups" id="loan-groups" hidden></div>
+            <div class="table-wrap" id="mov-table-wrap">
               <table class="tbl">
                 <thead>
-                  <tr><th>Fecha</th><th>Detalle</th><th>Etiqueta</th><th class="num">Monto</th><th></th></tr>
+                  <tr><th>Fecha</th><th>Detalle</th><th>Categoría</th><th>Cuenta</th><th class="num">Monto</th><th></th></tr>
                 </thead>
                 <tbody id="mov-tbody"></tbody>
               </table>
@@ -168,61 +239,28 @@
         </div>
       </section>
 
-      <!-- ----- Vista: Metas ----- -->
-      <section class="view" data-view="metas">
-        <div class="view-head-row">
-          <p class="muted">Se financian en <b>cascada por prioridad</b>: todo el ahorro llena la meta #1;
-            al comprarla, empieza la #2 desde cero.</p>
-          <button class="btn btn-primary btn-sm" id="btn-nueva-meta" type="button">＋ Nueva meta</button>
-        </div>
-        <div class="metas-grid" id="metas-grid"></div>
-      </section>
-
-      <!-- ----- Vista: Predicciones ----- -->
-      <section class="view" data-view="predicciones">
-        <div class="pred-top">
-          <div class="kpi glass" data-accent="cyan">
-            <span class="kpi-label">Patrimonio actual</span>
-            <span class="kpi-value" id="pred-pool">—</span>
-            <span class="kpi-sub" id="pred-pool-sub">ahorro histórico + saldo inicial</span>
-          </div>
-          <div class="kpi glass" data-accent="green">
-            <span class="kpi-label">Ahorro promedio</span>
-            <span class="kpi-value" id="pred-ahorro">—</span>
-            <span class="kpi-sub">estimado por mes</span>
-          </div>
-          <div class="kpi glass" data-accent="violet">
-            <span class="kpi-label">Meta en curso</span>
-            <span class="kpi-value" id="pred-proxima">—</span>
-            <span class="kpi-sub" id="pred-proxima-sub">—</span>
-          </div>
-        </div>
-
-        <div class="card glass">
+      <!-- ----- Vista: Reportes ----- -->
+      <section class="view" data-view="reportes">
+        <div class="card report-card">
           <div class="card-head">
-            <h2>Simulador de ahorro</h2>
-            <span class="muted">¿y si ahorro más cada mes?</span>
+            <h2>Descargar reporte</h2>
+            <span class="muted">movimientos por rango de fechas</span>
           </div>
-          <div class="sim2">
-            <div class="sim2-control">
-              <span class="sim2-label">Ahorro extra mensual</span>
-              <span class="sim2-amount" id="sim-delta-label">$0</span>
-              <input type="range" id="sim-delta" min="0" max="2000" step="50" value="0" />
-              <p class="muted sim2-hint">Se suma a tu ahorro promedio y adelanta toda la cola de metas.</p>
+          <p class="muted">Elige el periodo y descarga un CSV con todos tus movimientos (se abre en Excel).</p>
+          <div class="report-controls">
+            <button type="button" class="period-trigger" data-period="rep" aria-haspopup="dialog" aria-controls="period-dialog" aria-expanded="false">
+              <span class="period-trigger-icon" aria-hidden="true">▦</span>
+              <span><small>Periodo</small><strong id="rep-period-label">Elegir periodo</strong></span>
+              <span class="period-trigger-chevron" aria-hidden="true">⌄</span>
+            </button>
+            <div class="seg seg-sm period-quick" id="rep-range-seg" role="group" aria-label="Atajos de periodo">
+              <button type="button" class="seg-btn" data-preset="dia">Último día</button>
+              <button type="button" class="seg-btn active" data-preset="mes">Último mes</button>
+              <button type="button" class="seg-btn" data-preset="todo">Todo</button>
             </div>
-            <div class="sim2-timeline" id="sim-timeline"></div>
+            <button class="btn btn-primary" id="btn-descargar" type="button">⤓ Descargar CSV</button>
           </div>
-        </div>
-
-        <div class="grid-2">
-          <div class="card glass">
-            <div class="card-head"><h2>Proyección de patrimonio</h2><span class="muted">12 meses</span></div>
-            <div class="chart" id="chart-proyeccion"></div>
-          </div>
-          <div class="card glass">
-            <div class="card-head"><h2>Tendencia de ahorro</h2><span class="muted">profit por mes</span></div>
-            <div class="chart" id="chart-ahorro"></div>
-          </div>
+          <p class="muted report-count" id="rep-count">—</p>
         </div>
       </section>
 
@@ -238,54 +276,182 @@
     <span class="toast-ico">✓</span><span id="toast-msg">Actualizado</span>
   </div>
 
-  <!-- Modal de meta (crear / editar) -->
-  <div id="meta-modal" class="modal-overlay" hidden>
-    <div class="modal glass" role="dialog" aria-modal="true">
-      <div class="modal-head">
-        <h2 id="meta-modal-title">Nueva meta</h2>
-        <button type="button" class="modal-close" id="meta-modal-close" aria-label="Cerrar">✕</button>
-      </div>
-      <form id="meta-form" class="meta-form" autocomplete="off">
-        <input type="hidden" id="meta-id" />
-        <div class="meta-form-row">
-          <label class="field meta-emoji-field">
-            <span>Icono</span>
-            <input type="text" id="meta-emoji" maxlength="4" placeholder="🎯" />
-          </label>
-          <label class="field grow">
-            <span>Nombre</span>
-            <input type="text" id="meta-nombre" required maxlength="40" placeholder="Ej. dron, viaje, moto…" />
-          </label>
+  <!-- ===== Configuración (ventana flotante: panel izquierdo + detalle) ===== -->
+  <div id="cfg-modal" class="modal-overlay" hidden>
+    <div class="cfg-window" role="dialog" aria-modal="true" aria-label="Configuración">
+      <aside class="cfg-side">
+        <div class="cfg-side-head">
+          <input type="search" id="cfg-search" placeholder="Buscar" aria-label="Buscar ajuste" />
         </div>
-        <div class="emoji-suggest" id="emoji-suggest"></div>
-        <label class="field">
-          <span>Monto objetivo</span>
-          <input type="number" id="meta-monto" required min="1" step="0.01" placeholder="0.00" />
-        </label>
+        <p class="cfg-group">Configuración</p>
+        <nav class="cfg-tabs">
+          <button type="button" class="cfg-tab active" data-cfg="categorias">
+            <span class="cfg-ico">🏷️</span> Categorías
+          </button>
+          <button type="button" class="cfg-tab" data-cfg="historial">
+            <span class="cfg-ico">🗑️</span> Historial
+          </button>
+          <button type="button" class="cfg-tab" data-cfg="general">
+            <span class="cfg-ico">⚙️</span> General
+          </button>
+          <button type="button" class="cfg-tab" data-cfg="cuentas">
+            <span class="cfg-ico">💳</span> Cuentas
+          </button>
+          <button type="button" class="cfg-tab" data-cfg="sesion">
+            <span class="cfg-ico">👤</span> Sesión
+          </button>
+        </nav>
+      </aside>
 
-        <div class="field">
-          <span>Fecha límite <em class="muted">(opcional)</em></span>
-          <div class="seg" id="meta-fecha-seg">
-            <button type="button" class="seg-btn active" data-fecha="edad">Por edad</button>
-            <button type="button" class="seg-btn" data-fecha="fecha">Fecha exacta</button>
-            <button type="button" class="seg-btn" data-fecha="none">Sin límite</button>
+      <section class="cfg-main">
+        <button type="button" class="cfg-close" id="cfg-close" aria-label="Cerrar">✕</button>
+
+        <div class="cfg-body">
+          <!-- Categorías -->
+          <div class="cfg-pane active" data-cfg="categorias">
+            <h2>Categorías</h2>
+            <div class="seg" id="cfg-cat-flujo-seg">
+              <button type="button" class="seg-btn active" data-flujo="egreso">Egresos</button>
+              <button type="button" class="seg-btn" data-flujo="ingreso">Ingresos</button>
+            </div>
+
+            <!-- Egresos: nombre + tope mensual -->
+            <div class="cfg-flujo active" data-flujo="egreso">
+              <p class="cfg-hint">
+                Toda salida de dinero se clasifica con una categoría. El tope mensual es opcional:
+                define el semáforo del Resumen.
+              </p>
+              <div class="cfg-cats" id="cfg-cats"></div>
+              <div class="cfg-cat-new">
+                <input type="text" id="cfg-cat-nueva" maxlength="30" placeholder="Nueva categoría de egreso" />
+                <button type="button" class="btn btn-ghost btn-sm" id="cfg-cat-add">＋ Agregar</button>
+              </div>
+            </div>
+
+            <!-- Ingresos: solo nombre (el ingreso no se presupuesta) -->
+            <div class="cfg-flujo" data-flujo="ingreso">
+              <p class="cfg-hint">
+                Toda entrada de dinero se clasifica con una categoría de ingreso (sueldo,
+                proyectos…). No llevan tope: el ingreso no se presupuesta.
+              </p>
+              <div class="cfg-cats" id="cfg-fuentes"></div>
+              <div class="cfg-cat-new">
+                <input type="text" id="cfg-fuente-nueva" maxlength="30" placeholder="Nueva categoría de ingreso" />
+                <button type="button" class="btn btn-ghost btn-sm" id="cfg-fuente-add">＋ Agregar</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Historial -->
+          <div class="cfg-pane" data-cfg="historial">
+            <h2>Historial</h2>
+            <p class="cfg-hint">
+              Borra movimientos ya registrados. <b>No se puede deshacer</b> y se aplica al
+              instante (no depende de Guardar).
+            </p>
+            <p class="muted" id="cfg-hist-resumen">—</p>
+            <div class="seg" id="cfg-hist-seg">
+              <button type="button" class="seg-btn active" data-modo="mes">Por mes</button>
+              <button type="button" class="seg-btn" data-modo="dia">Por día</button>
+              <button type="button" class="seg-btn" data-modo="todo">Todo el histórico</button>
+            </div>
+            <div class="cfg-rows">
+              <div class="cfg-row" id="cfg-hist-row-mes">
+                <div><label for="cfg-hist-mes">Mes a borrar</label>
+                  <em class="muted">solo aparecen los meses con datos</em></div>
+                <select id="cfg-hist-mes"></select>
+              </div>
+              <div class="cfg-row" id="cfg-hist-row-dia" hidden>
+                <div><label for="cfg-hist-dia">Día a borrar</label>
+                  <em class="muted">solo aparecen los días con datos</em></div>
+                <select id="cfg-hist-dia"></select>
+              </div>
+              <div class="cfg-row" id="cfg-hist-row-todo" hidden>
+                <div><label>Todo el histórico</label>
+                  <em class="muted">las cuentas y conciliaciones se conservan</em></div>
+                <span class="muted" id="cfg-hist-total">—</span>
+              </div>
+            </div>
+            <div class="cfg-hist-actions">
+              <button type="button" class="btn btn-danger" id="cfg-hist-borrar">Eliminar</button>
+            </div>
+          </div>
+
+          <!-- General -->
+          <div class="cfg-pane" data-cfg="general">
+            <h2>General</h2>
+            <p class="cfg-hint">Preferencias de este navegador.</p>
+            <div class="cfg-rows">
+              <div class="cfg-row">
+                <div><label for="cfg-privado">Ocultar montos al abrir</label>
+                  <em class="muted">los desbloqueas con el ojo 👁️</em></div>
+                <label class="switch"><input type="checkbox" id="cfg-privado" /><span></span></label>
+              </div>
+              <div class="cfg-row">
+                <div><label for="cfg-autorefresh">Refresco automático</label>
+                  <em class="muted">revisa cambios cada minuto</em></div>
+                <label class="switch"><input type="checkbox" id="cfg-autorefresh" /><span></span></label>
+              </div>
+              <div class="cfg-row">
+                <div><label for="cfg-rango">Rango por defecto en Movimientos</label>
+                  <em class="muted">al abrir el dashboard</em></div>
+                <select id="cfg-rango">
+                  <option value="mes">Último mes</option>
+                  <option value="todo">Todo</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <!-- Cuentas financieras -->
+          <div class="cfg-pane" data-cfg="cuentas">
+            <h2>Cuentas</h2>
+            <p class="cfg-hint">Administra dónde está tu dinero. Conciliar registra la diferencia sin crear ingresos ni gastos.</p>
+            <div class="cfg-accounts" id="cfg-accounts"></div>
+            <div class="cfg-cat-new">
+              <input type="text" id="cfg-account-new" maxlength="60" placeholder="Nueva cuenta" />
+              <button type="button" class="btn btn-ghost btn-sm" id="cfg-account-add">＋ Agregar</button>
+            </div>
+          </div>
+
+          <!-- Sesión -->
+          <div class="cfg-pane" data-cfg="sesion">
+            <h2>Sesión</h2>
+            <p class="cfg-hint">Panel privado de un solo usuario, protegido por contraseña.</p>
+            <div class="cfg-rows">
+              <div class="cfg-row">
+                <div><label>Sesión</label><em class="muted">activa en este navegador</em></div>
+                <a href="/logout" class="btn btn-ghost btn-sm">Cerrar sesión</a>
+              </div>
+              <div class="cfg-row">
+                <div><label>Contraseña</label>
+                  <em class="muted">se cambia en las variables de entorno del servidor</em></div>
+                <span class="muted">DASHBOARD_PASSWORD</span>
+              </div>
+            </div>
           </div>
         </div>
-        <label class="field meta-fecha-input" data-for="edad">
-          <span>Antes de los … años</span>
-          <input type="number" id="meta-edad" min="1" max="120" step="1" placeholder="Ej. 32" />
-        </label>
-        <label class="field meta-fecha-input" data-for="fecha" hidden>
-          <span>Fecha objetivo</span>
-          <input type="date" id="meta-fecha" />
-        </label>
 
-        <p class="form-error" id="meta-error" hidden></p>
-        <div class="modal-actions">
-          <button type="button" class="btn btn-ghost" id="meta-cancel">Cancelar</button>
-          <button type="submit" class="btn btn-primary" id="meta-save">Guardar</button>
-        </div>
-      </form>
+        <footer class="cfg-foot">
+          <span class="cfg-saved" id="cfg-saved" hidden>✓ Guardado</span>
+          <p class="form-error cfg-err" id="cfg-error" hidden></p>
+          <button type="button" class="btn btn-ghost" id="cfg-cancel">Cerrar</button>
+          <button type="button" class="btn btn-primary" id="cfg-save">Guardar</button>
+        </footer>
+      </section>
+    </div>
+  </div>
+
+  <!-- Modal de confirmación (borrar movimiento / categoría) -->
+  <div id="confirm-modal" class="modal-overlay" hidden>
+    <div class="modal card confirm-box" role="alertdialog" aria-modal="true">
+      <div class="confirm-ico">⚠️</div>
+      <h2 id="confirm-title">¿Estás seguro?</h2>
+      <p id="confirm-msg" class="muted"></p>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-ghost" id="confirm-cancel">Cancelar</button>
+        <button type="button" class="btn btn-danger" id="confirm-ok">Eliminar</button>
+      </div>
     </div>
   </div>
 </body>

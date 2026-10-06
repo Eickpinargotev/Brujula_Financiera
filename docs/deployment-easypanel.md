@@ -21,31 +21,42 @@ del proxy con HTTPS, con un **volumen persistente** para la base de datos.
 5. **Variables de entorno** (en el panel, NO en el repo):
    ```
    APP_ENV=production
-   TIMEZONE=America/Guayaquil
-   TELEGRAM_BOT_TOKEN=...
-   TELEGRAM_ALLOWED_CHAT_ID=...
-   OPENAI_API_KEY=...
-   ELEVENLABS_API_KEY=...
    DASHBOARD_PASSWORD=...
    SESSION_SECRET=...            # openssl rand -hex 32
    DATABASE_URL=sqlite+aiosqlite:////data/brujula.db
    ```
-   > `APP_ENV=production` es lo que **activa el polling del bot**. Los ids de modelos son
-   > defaults en código (no van en el entorno). Los parámetros financieros viven en la BD.
+   > Los parámetros financieros viven en la base de datos.
 6. **Dominio**: asignar el subdominio de Hostinger y activar HTTPS (Let's Encrypt).
-7. **Deploy** y revisar logs: el dashboard responde y el bot conecta por polling.
+7. **Deploy** y revisar logs: el dashboard y `/health` responden correctamente.
 
 ## Notas de seguridad en producción
 
 - `APP_ENV=production` activa cookies `Secure` y desactiva el reload.
-- El bot solo atiende a `TELEGRAM_ALLOWED_CHAT_ID`.
 - El dashboard no muestra el nombre del dueño aunque la URL lo tenga.
-- **Polling** (sin webhook): no se expone ningún endpoint de Telegram.
 
 ## Respaldos
 
-La BD es un solo archivo: `/data/brujula.db`. Programar copia periódica del volumen
-(o `docker cp` / snapshot del volumen en EasyPanel).
+La única base activa es `/data/brujula.db`. Los archivos `-wal` y `-shm` pertenecen a
+esa misma base; no se borran ni se sustituyen mientras la aplicación está en marcha.
+La aplicación crea respaldos consistentes con la API SQLite (incluyen el WAL) en
+`/data/backups` antes de cada escritura de la API y antes de las migraciones de arranque.
+Si el respaldo falla, la escritura se bloquea. No hay borrado automático de respaldos:
+vigilar el espacio y copiar periódicamente los archivos terminados a otro dispositivo.
+Un respaldo en el mismo disco permite recuperar errores de edición, pero no protege
+frente a la pérdida del disco completo.
+
+No copiar únicamente el `.db` en caliente: puede omitir transacciones del WAL.
+Para recuperar, detener la aplicación, conservar el conjunto actual `.db`/`-wal`/`-shm`
+como evidencia y restaurar un respaldo verificado, sin mezclar su WAL con otro archivo.
+Nunca fusionar respaldos por ID: los identificadores pueden haberse reutilizado.
+
+El arranque normal exige que exista una base de Brújula íntegra. Si falta el volumen,
+se detiene en vez de crear datos nuevos. Para una instalación deliberadamente vacía,
+ejecutar una sola inicialización con `ALLOW_DATABASE_CREATE=true` y volver a `false`.
+No habilitarlo para recuperar una base perdida. El arranque no inserta movimientos demo.
+
+Desarrollo y un futuro servidor remoto tendrían discos distintos: no alternar entre
+ambos como si se sincronizaran. Elegir un único servidor para registrar las finanzas.
 
 ## Diferencias dev ↔ prod
 

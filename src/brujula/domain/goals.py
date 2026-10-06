@@ -38,6 +38,40 @@ def meses_hasta_objetivo(
     return math.ceil(faltante / ahorro_mensual)
 
 
+def eta_cascada(
+    pool: float,
+    metas: list[tuple[float, float | None]],
+    ahorro_promedio: float,
+) -> list[int | None]:
+    """Meses hasta completar cada meta, en cascada y con compromiso por meta.
+
+    `metas` = [(monto_objetivo, compromiso_mensual | None), …] ya ordenadas por prioridad.
+    El compromiso de cada meta manda su ritmo; si es None se usa `ahorro_promedio`.
+    La meta i empieza cuando termina la i-1: meses_i = meses_{i-1} + ceil(faltante_i ÷ ritmo_i).
+    None cuando el ritmo efectivo es 0 (no se alcanzaría nunca); arrastra a las siguientes.
+    """
+    asignados, _ = asignar_cascada(pool, [monto for monto, _ in metas])
+    out: list[int | None] = []
+    acumulado: int | None = 0
+    for (monto, compromiso), ahorrado in zip(metas, asignados, strict=True):
+        if acumulado is None:
+            out.append(None)
+            continue
+        faltante = max(monto - ahorrado, 0.0)
+        if faltante <= 0:
+            # En cascada una meta completa siempre va antes que las incompletas.
+            out.append(0)
+            continue
+        ritmo = compromiso if compromiso is not None and compromiso > 0 else ahorro_promedio
+        if ritmo <= 0:
+            acumulado = None
+            out.append(None)
+            continue
+        acumulado += math.ceil(faltante / ritmo)
+        out.append(acumulado)
+    return out
+
+
 def progreso(monto_objetivo: float, ahorrado: float) -> float:
     """Fracción [0, 1] de avance hacia la meta."""
     if monto_objetivo <= 0:

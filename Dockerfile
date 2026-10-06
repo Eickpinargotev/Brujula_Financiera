@@ -13,11 +13,10 @@ ENV PYTHONUNBUFFERED=1 \
 # instalada: así el bind-mount de desarrollo (--reload) toma efecto, y en producción
 # se usa el ./src copiado en la imagen.
 
-# Dependencias del sistema mínimas:
-#  - ffmpeg: ayuda con audio de Telegram (.oga/.ogg)
-#  - gosu: para bajar de root a usuario no-root tras ajustar permisos del volumen
+# Dependencia del sistema mínima: gosu permite bajar de root a usuario no-root
+# después de ajustar permisos del volumen.
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends ffmpeg gosu \
+    && apt-get install -y --no-install-recommends gosu \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
@@ -53,5 +52,11 @@ VOLUME ["/data"]
 # volumen y luego ejecuta la app como `brujula` (no-root) vía gosu.
 EXPOSE 8000
 
+# Healthcheck: verifica la app Y la base de datos (/health hace SELECT 1).
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
+  CMD python -c "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=4).status==200 else 1)"
+
 ENTRYPOINT ["/entrypoint.sh"]
-CMD ["uvicorn", "brujula.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# --proxy-headers: detrás del proxy de EasyPanel, ve la IP real del cliente (rate-limit).
+CMD ["uvicorn", "brujula.main:app", "--host", "0.0.0.0", "--port", "8000", \
+     "--proxy-headers", "--forwarded-allow-ips", "*"]

@@ -2,7 +2,7 @@
 
 Se siembra UNA sola vez (flag `demo_seeded`) y SOLO fuera de producción, para no
 contaminar los datos reales en la nube. Genera unos cuantos ingresos y egresos en los
-últimos meses, repartidos por sobre/categoría/comercio.
+últimos meses, repartidos por sobre/comercio.
 """
 
 from __future__ import annotations
@@ -11,7 +11,7 @@ import logging
 from datetime import date
 
 from dateutil.relativedelta import relativedelta
-from sqlalchemy import select, update
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from brujula.db.models import Movimiento, Parameter
@@ -45,7 +45,6 @@ def _demo_movimientos(hoy: date) -> list[dict[str, object]]:
                 "monto": 60.0,
                 "descripcion": "Diezmo",
                 "sobre": "iglesia",
-                "categoria": "iglesia",
                 "comercio": "Iglesia",
             },
             {
@@ -54,7 +53,6 @@ def _demo_movimientos(hoy: date) -> list[dict[str, object]]:
                 "monto": 45.0,
                 "descripcion": "Recarga de transporte",
                 "sobre": "transporte",
-                "categoria": "transporte",
                 "comercio": "Metro",
             },
             {
@@ -63,7 +61,6 @@ def _demo_movimientos(hoy: date) -> list[dict[str, object]]:
                 "monto": 78.5,
                 "descripcion": "Salida con la pareja",
                 "sobre": "pareja",
-                "categoria": "entretenimiento",
                 "comercio": "Restaurante",
             },
             {
@@ -72,7 +69,6 @@ def _demo_movimientos(hoy: date) -> list[dict[str, object]]:
                 "monto": 120.0,
                 "descripcion": "Mercado familiar",
                 "sobre": "familia",
-                "categoria": "comida",
                 "comercio": "Supermercado",
             },
             {
@@ -81,7 +77,6 @@ def _demo_movimientos(hoy: date) -> list[dict[str, object]]:
                 "monto": 40.0,
                 "descripcion": "Mensualidad del gimnasio",
                 "sobre": "personal",
-                "categoria": "salud",
                 "comercio": "Gym",
             },
         ]
@@ -113,7 +108,6 @@ def _demo_movimientos(hoy: date) -> list[dict[str, object]]:
             "monto": 210.0,
             "descripcion": "Auriculares",
             "sobre": "ahorro",
-            "categoria": "tecnologia",
             "comercio": "Amazon",
         },
     ]
@@ -131,11 +125,6 @@ async def seed_demo_if_needed(session: AsyncSession, hoy: date | None = None) ->
 
     for mov in _demo_movimientos(hoy):
         session.add(Movimiento(**mov))
-
-    # Ahorro previo (patrimonio inicial) para que la cascada de metas tenga algo repartido.
-    await session.execute(
-        update(Parameter).where(Parameter.key == "saldo_inicial").values(value="6000")
-    )
 
     session.add(
         Parameter(

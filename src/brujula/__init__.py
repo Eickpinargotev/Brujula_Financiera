@@ -1,3 +1,3 @@
-"""Brújula — copiloto financiero personal (Telegram + dashboard)."""
+"""Brújula — dashboard financiero personal."""
 
 __version__ = "0.1.0"

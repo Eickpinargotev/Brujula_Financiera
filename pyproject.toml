@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "brujula"
 version = "0.1.0"
-description = "Copiloto financiero personal por Telegram + dashboard privado"
+description = "Dashboard privado para controlar finanzas personales"
 readme = "README.md"
 requires-python = ">=3.12"
 license = { text = "Proprietary" }
@@ -17,14 +17,6 @@ dependencies = [
   "jinja2>=3.1",
   "python-multipart>=0.0.12",
   "itsdangerous>=2.2",
-  # Bot
-  "python-telegram-bot>=21.6",
-  # Agente IA
-  "langgraph>=0.2.45",
-  "langchain-openai>=0.2",
-  "openai>=1.54",
-  # Transcripción
-  "elevenlabs>=1.10",
   # Datos
   "sqlalchemy[asyncio]>=2.0",
   "aiosqlite>=0.20",

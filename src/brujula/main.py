@@ -1,23 +1,19 @@
-"""Entrypoint de Brújula.
-
-Crea la app de FastAPI (dashboard) y, en el `lifespan`, arrancará el bot de Telegram
-(polling) como tarea del mismo event loop: **un solo proceso, un solo contenedor**.
-
-Por ahora es un esqueleto que arranca y sirve un placeholder + /health, para validar la
-imagen Docker. El cableado del bot y del dashboard se completa en la fase de desarrollo.
-"""
+"""Entrypoint del dashboard web de Brújula."""
 
 from __future__ import annotations
 
 import logging
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, Response
+from fastapi.responses import JSONResponse
+from sqlalchemy import text
 
 from brujula.config.settings import get_settings
 from brujula.core.logging import configure_logging
 from brujula.db.bootstrap import bootstrap_database
+from brujula.db.engine import get_engine
 from brujula.web.app import register_web
 
 settings = get_settings()
@@ -39,26 +35,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     # Crea las tablas y siembra parámetros/metas/sobres iniciales.
     await bootstrap_database(settings)
 
-    # Arranca el bot de Telegram (polling) SOLO en producción, para no chocar con la nube.
-    app.state.bot = None
-    if settings.bot_should_poll:
-        try:
-            from brujula.bot.telegram_bot import start_bot
-
-            app.state.bot = await start_bot(settings)
-        except Exception:  # noqa: BLE001 - el dashboard debe seguir vivo
-            logger.exception("No se pudo iniciar el bot; el dashboard sigue activo.")
-    elif not settings.is_production:
-        logger.info("Bot en pausa: en desarrollo no hace polling (evita conflicto con la nube).")
-    else:
-        logger.warning("Bot no iniciado: faltan TELEGRAM_BOT_TOKEN u OPENAI_API_KEY.")
-
     yield
-
-    if app.state.bot is not None:
-        from brujula.bot.telegram_bot import stop_bot
-
-        await stop_bot(app.state.bot)
 
 
 # docs/openapi deshabilitados: no exponer el esquema de la API.
@@ -74,6 +51,43 @@ app = FastAPI(
 register_web(app, settings)
 
 
+@app.middleware("http")
+async def security_and_cache_headers(
+    request: Request, call_next: Callable[[Request], Awaitable[Response]]
+) -> Response:
+    """Headers de seguridad en todo, y política de caché correcta.
+
+    - Estáticos: caché larga (van versionados con ?v=, así nunca se sirven viejos).
+    - Páginas y API: no-store (datos financieros; nada queda cacheado en el navegador).
+    """
+    response = await call_next(request)
+    response.headers.setdefault("X-Content-Type-Options", "nosniff")
+    response.headers.setdefault("X-Frame-Options", "DENY")
+    response.headers.setdefault("Referrer-Policy", "no-referrer")
+    if request.url.path.startswith("/static"):
+        response.headers.setdefault("Cache-Control", "public, max-age=31536000, immutable")
+    else:
+        response.headers.setdefault("Cache-Control", "no-store")
+    return response
+
+
+@app.exception_handler(Exception)
+async def unhandled_error(request: Request, exc: Exception) -> JSONResponse:
+    """Error genérico hacia afuera; el detalle queda solo en los logs (CLAUDE.md §6)."""
+    logger.exception("Error no controlado en %s", request.url.path)
+    return JSONResponse(status_code=500, content={"detail": "Error interno"})
+
+
 @app.get("/health", include_in_schema=False)
-async def health() -> dict[str, str]:
-    return {"status": "ok", "env": settings.app_env}
+async def health() -> JSONResponse:
+    """Estado de la app Y de la base de datos (lo usan los healthchecks del contenedor)."""
+    try:
+        async with get_engine(settings).connect() as conn:
+            await conn.execute(text("SELECT 1"))
+    except Exception:
+        logger.exception("Healthcheck: la base de datos no responde.")
+        return JSONResponse(
+            status_code=503,
+            content={"status": "degraded", "db": "error", "env": settings.app_env},
+        )
+    return JSONResponse({"status": "ok", "db": "ok", "env": settings.app_env})

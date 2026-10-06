@@ -5,6 +5,8 @@ Ver docs/finance-model.md §2. El dinero NO se calcula en el LLM ni en la UI: aq
 
 from __future__ import annotations
 
+from collections.abc import Iterable
+
 # Si el saldo disponible de un sobre cae por debajo de este % de lo asignado,
 # se considera "cerca del tope" → semáforo amarillo.
 YELLOW_THRESHOLD = 0.15
@@ -32,9 +34,14 @@ def residual_allocation(ingreso_total: float, asignaciones_no_residuales: float)
 def semaforo(asignado: float, gastado: float) -> str:
     """Estado del sobre comparando lo gastado contra lo asignado.
 
+    `asignado` puede venir con arrastre incorporado (y por tanto ser negativo: se gastó
+    de más en meses anteriores). En ese caso el sobre arranca en rojo.
+
     🟢 'verde' (vas bien) · 🟡 'amarillo' (cerca del tope) · 🔴 'rojo' (te pasaste).
     """
-    if asignado <= 0:
+    if asignado < 0:
+        return "rojo"
+    if asignado == 0:
         return "verde" if gastado <= 0 else "rojo"
     balance = asignado - gastado
     if balance < 0:
@@ -42,3 +49,12 @@ def semaforo(asignado: float, gastado: float) -> str:
     if balance < asignado * YELLOW_THRESHOLD:
         return "amarillo"
     return "verde"
+
+
+def arrastre(historial: Iterable[tuple[float, float]]) -> float:
+    """Saldo que se acumula de meses anteriores: Σ (asignado − gastado).
+
+    Positivo = lo que no gastaste y sigue disponible en el sobre.
+    Negativo = te pasaste antes y ese exceso se descuenta del periodo actual.
+    """
+    return round(sum(asignado - gastado for asignado, gastado in historial), 2)

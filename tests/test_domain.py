@@ -46,6 +46,24 @@ def test_semaforo_sin_asignacion() -> None:
     assert budget.semaforo(0.0, 5.0) == "rojo"
 
 
+def test_semaforo_base_negativa_es_rojo() -> None:
+    # Arrastre negativo: se gastó de más antes, el sobre arranca en rojo aunque no gastes.
+    assert budget.semaforo(-15.0, 0.0) == "rojo"
+
+
+def test_arrastre_suma_lo_no_gastado() -> None:
+    # Junio: asignado 100, gastado 50 → sobra 50. Julio: asignado 100, gastado 100 → 0.
+    assert budget.arrastre([(100.0, 50.0), (100.0, 100.0)]) == 50.0
+
+
+def test_arrastre_negativo_si_te_pasaste() -> None:
+    assert budget.arrastre([(100.0, 115.0)]) == -15.0
+
+
+def test_arrastre_sin_historial_es_cero() -> None:
+    assert budget.arrastre([]) == 0.0
+
+
 # --- goals --------------------------------------------------------------------------
 
 
@@ -91,6 +109,37 @@ def test_meses_hasta_objetivo() -> None:
     assert goals_dom.meses_hasta_objetivo(500.0, 2500.0, 500.0) == 4
     assert goals_dom.meses_hasta_objetivo(3000.0, 2500.0, 500.0) == 0  # ya alcanzado
     assert goals_dom.meses_hasta_objetivo(500.0, 2500.0, 0.0) is None  # sin ahorro
+
+
+def test_eta_cascada_compromiso_manda() -> None:
+    # pool 1000 → meta 1 (5000, a 500/mes): faltan 4000 → 8 meses.
+    # meta 2 (3000, a 1000/mes) empieza al terminar la 1: 8 + 3 = 11 meses.
+    etas = goals_dom.eta_cascada(1000.0, [(5000.0, 500.0), (3000.0, 1000.0)], 200.0)
+    assert etas == [8, 11]
+
+
+def test_eta_cascada_fallback_ahorro_promedio() -> None:
+    # Sin compromiso, la meta usa el ahorro promedio (comportamiento original).
+    etas = goals_dom.eta_cascada(0.0, [(1000.0, None)], 250.0)
+    assert etas == [4]
+
+
+def test_eta_cascada_mixta() -> None:
+    # Meta 1 sin compromiso (promedio 500): 2000/500 = 4; meta 2 con 1000/mes: 4 + 1 = 5.
+    etas = goals_dom.eta_cascada(0.0, [(2000.0, None), (1000.0, 1000.0)], 500.0)
+    assert etas == [4, 5]
+
+
+def test_eta_cascada_meta_completada_y_sin_ritmo() -> None:
+    # Meta 1 ya cubierta por el pool → 0 meses; meta 2 sin compromiso ni promedio → None.
+    etas = goals_dom.eta_cascada(1500.0, [(1000.0, None), (2000.0, None)], 0.0)
+    assert etas == [0, None]
+
+
+def test_eta_cascada_sin_ritmo_arrastra() -> None:
+    # Si una meta no se alcanza nunca, las siguientes tampoco (aunque tengan compromiso).
+    etas = goals_dom.eta_cascada(0.0, [(1000.0, None), (500.0, 100.0)], 0.0)
+    assert etas == [None, None]
 
 
 # --- forecast -----------------------------------------------------------------------

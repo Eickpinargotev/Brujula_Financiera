@@ -1,1 +1,1 @@
-"""Integraciones externas: transcripción (ElevenLabs) y reportes."""
+"""Servicios internos de Brújula."""

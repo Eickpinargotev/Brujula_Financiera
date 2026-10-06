@@ -1,4 +1,4 @@
-"""Reportes para Telegram/dashboard. Los números se calculan en Python, no en el LLM."""
+"""Reportes financieros calculados en Python."""
 
 from __future__ import annotations
 

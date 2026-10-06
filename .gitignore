@@ -13,15 +13,45 @@ venv/
 
 # Secretos / entorno
 .env
+.env.*
 *.env
 !.env.example
+*.pem
+*.key
 
 # Datos / base de datos (nunca al repo, pero conservamos la carpeta vacía)
 /data/*
 !/data/.gitkeep
 *.db
+*.db-*
+*.db.*
 *.sqlite
+*.sqlite-*
+*.sqlite.*
 *.sqlite3
+*.sqlite3-*
+*.sqlite3.*
+
+# Exportaciones, conciliaciones, importaciones y copias de datos personales
+/outputs/
+/exports/
+/imports/
+/backups/
+/recovery/
+*.csv
+*.tsv
+*.xls
+*.xlsx
+*.ods
+*.sql
+*.dump
+*.bak
+*.bak-*
+*.bak.*
+
+# Configuración local de asistentes (puede incluir rutas o credenciales)
+/.claude/
+/.codex/
 
 # Logs
 *.log
